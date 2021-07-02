@@ -24,8 +24,10 @@ public class NettyServer {
 					@Override
 					protected void initChannel(Channel channel) throws Exception {
 						channel.pipeline().addLast(
-							new StringDecoder(), // in - 1
-							new StringEncoder() // out - 1
+							new StringDecoder(),
+							new StringEncoder(),
+							new NewLineHandler(),
+							new UsersHandler()
 						);
 					}
 				});
