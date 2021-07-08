@@ -1,4 +1,4 @@
-package com.vorobyov.cloudstorage.netty;
+package com.vorobyov.cloudstorage.server.handlers;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -23,7 +23,7 @@ public class UsersHandler extends SimpleChannelInboundHandler<String> {
 		"\tcat        (filename) view text file",
 		"\tchangenick (nickname) change user's nickname",
 		"\n\r"
-	};
+	}; // TODO
 	
 	String userName = "User1";
 	String currentPath = Paths.get("server", userName).toString();
@@ -51,7 +51,7 @@ public class UsersHandler extends SimpleChannelInboundHandler<String> {
 		String command = msg
 				.replace("\r", "")
 				.replace("\n", "");
-		System.out.println(command);
+		System.out.println(command); //TODO
 		
 		if ("--help".equals(command)) {
 			for (String c : commandList) {
@@ -75,7 +75,7 @@ public class UsersHandler extends SimpleChannelInboundHandler<String> {
 			ctx.writeAndFlush(changeUserName(command));
 		}
 		
-		String startOfLine = "!newline!" + currentPath + "> ";
+		String startOfLine = "!newline!" + currentPath.replaceFirst("server", "") + "> ";
 		ctx.writeAndFlush(startOfLine);
 	}
 	
