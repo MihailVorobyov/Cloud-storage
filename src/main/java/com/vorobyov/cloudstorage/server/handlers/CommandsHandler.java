@@ -12,7 +12,7 @@ import java.util.Arrays;
 
 import static java.nio.file.FileVisitResult.CONTINUE;
 
-public class UsersHandler extends SimpleChannelInboundHandler<String> {
+public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	private static final String[] commandList = {
 		"\tls         view all files from current directory",
 		"\ttouch      create new file",

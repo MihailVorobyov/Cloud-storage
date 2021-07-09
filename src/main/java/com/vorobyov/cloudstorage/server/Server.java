@@ -1,7 +1,7 @@
 package com.vorobyov.cloudstorage.server;
 
 import com.vorobyov.cloudstorage.server.handlers.NewLineHandler;
-import com.vorobyov.cloudstorage.server.handlers.UsersHandler;
+import com.vorobyov.cloudstorage.server.handlers.CommandsHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -29,7 +29,7 @@ public class Server {
 							new StringDecoder(),
 							new StringEncoder(),
 							new NewLineHandler(),
-							new UsersHandler()
+							new CommandsHandler()
 						);
 					}
 				});
