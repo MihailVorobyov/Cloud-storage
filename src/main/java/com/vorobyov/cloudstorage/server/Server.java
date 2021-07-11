@@ -1,5 +1,7 @@
-package com.vorobyov.cloudstorage.netty;
+package com.vorobyov.cloudstorage.server;
 
+import com.vorobyov.cloudstorage.server.handlers.NewLineHandler;
+import com.vorobyov.cloudstorage.server.handlers.UsersHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -10,8 +12,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 
-public class NettyServer {
-	public NettyServer() {
+public class Server {
+	public Server() {
 		EventLoopGroup auth = new NioEventLoopGroup(1);
 		EventLoopGroup worker = new NioEventLoopGroup();
 		
@@ -24,8 +26,10 @@ public class NettyServer {
 					@Override
 					protected void initChannel(Channel channel) throws Exception {
 						channel.pipeline().addLast(
-							new StringDecoder(), // in - 1
-							new StringEncoder() // out - 1
+							new StringDecoder(),
+							new StringEncoder(),
+							new NewLineHandler(),
+							new UsersHandler()
 						);
 					}
 				});
@@ -42,6 +46,6 @@ public class NettyServer {
 	}
 	
 	public static void main(String[] args) {
-		new NettyServer();
+		new Server();
 	}
 }
