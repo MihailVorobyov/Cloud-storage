@@ -1,5 +1,6 @@
 package com.vorobyov.cloudstorage.server;
 
+import com.vorobyov.cloudstorage.server.handlers.AuthHandler;
 import com.vorobyov.cloudstorage.server.handlers.NewLineHandler;
 import com.vorobyov.cloudstorage.server.handlers.CommandsHandler;
 import io.netty.bootstrap.ServerBootstrap;
@@ -28,6 +29,7 @@ public class Server {
 						channel.pipeline().addLast(
 							new StringDecoder(),
 							new StringEncoder(),
+							new AuthHandler(),
 							new NewLineHandler(),
 							new CommandsHandler()
 						);

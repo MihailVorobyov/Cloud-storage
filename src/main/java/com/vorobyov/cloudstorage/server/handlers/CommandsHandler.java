@@ -29,18 +29,6 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	String currentPath = Paths.get("server", userName).toString();
 	
 	@Override
-	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		System.out.println("client connected: " + ctx.channel());
-		if (Files.exists(Paths.get(userName))) {
-			Files.createDirectories(Paths.get(userName));
-		}
-		ctx.read().flush();
-		ctx.writeAndFlush("Hello, " + userName + "!");
-		ctx.writeAndFlush("Enter --help for support info");
-	}
-	
-	
-	@Override
 	public void channelInactive(ChannelHandlerContext ctx) {
 		System.out.println("client disconnected: " + ctx.channel());
 	}
