@@ -1,13 +1,17 @@
 package com.vorobyov.cloudstorage.server.handlers;
 
-import com.sun.javaws.JAuthenticator;
-import io.netty.channel.ChannelHandler;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @version 1.00 2021-07-09
@@ -15,21 +19,25 @@ import java.nio.file.Paths;
  */
 public class AuthHandler extends SimpleChannelInboundHandler<String> {
 	
+	// TODO: удалить поля после создания БД
+	static Map<Channel, String> users = new HashMap<>();
+	static Map<String, String> authData = new HashMap<>();
+	static List<String> usersOnline = new ArrayList<>();
+	
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
 		System.out.println("client connected: " + ctx.channel());
-//		ctx.read().flush(); //TODO удалить
-		ctx.writeAndFlush("Authentication"); //TODO удалить
+		ctx.writeAndFlush("Authentication\n\r"); //TODO удалить
+		ctx.writeAndFlush(AuthHandler.authData.toString() + "\n\r");
+		ctx.writeAndFlush(AuthHandler.usersOnline.toString() + "\n\r");
 	}
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-		if (msg.startsWith("signIn ")) {
+		if (msg.startsWith("signin ")) {
 			signIn(ctx, msg);
-		} else if (msg.startsWith("signUp ")) {
+		} else if (msg.startsWith("signup ")) {
 			signUp(ctx, msg);
-		} else {
-			ctx.writeAndFlush(msg);
 		}
 	}
 	
@@ -38,45 +46,57 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 	 * прекращает работу.
 	 * Регистрация происходит путём проверки базы данных "users" и добавления новой записи.
 	 * @param ctx ChannelHandlerContext
-	 * @param msg Сообщение от пользователя, которое начинается с символов "signUp"
+	 * @param msg Сообщение от пользователя, которое начинается с символов "signup"
 	 * @return
 	 */
 	private void signUp(ChannelHandlerContext ctx, String msg) throws IOException {
 		String userName;
 		String password;
 		
-		String[] s = msg.replaceFirst("signUp", "").replaceAll("\n\r", "").trim().split(":", 2);
+		String[] s = msg.replaceFirst("signup", "").replaceAll("\n\r", "").trim().split(":", 2);
 		userName = s[0];
 		password = s[1];
 		
 		// TODO заменить на обращение к БД
-		if ("user1".equalsIgnoreCase(userName)) {
-			ctx.writeAndFlush("user1 already exists");
+		if (AuthHandler.authData.containsKey(userName)) {
+			ctx.writeAndFlush("User already exists");
 		} else {
-			ctx.writeAndFlush("user1 registered");
-			Files.createDirectories(Paths.get(userName));
+			AuthHandler.users.put(ctx.channel(), userName);
+			AuthHandler.authData.put(userName, password);
+			if (!Files.exists(Paths.get("server" + File.separator + userName))) {
+				Files.createDirectories(Paths.get("server" + File.separator + userName));
+			}
+			signIn(ctx, msg.replaceFirst("signup", "signin"));
 		}
 	}
 	
 	/**
 	 * Метод проверяет имя пользователя и пароль на соответствие таковым в базе данных.
 	 * @param ctx ChannelHandlerContext
-	 * @param msg Сообщение от пользователя, которое начинается с символов "signIn"
+	 * @param msg Сообщение от пользователя, которое начинается с символов "signin"
 	 * @return
 	 */
 	private void signIn(ChannelHandlerContext ctx, String msg) {
 		String userName;
 		String password;
 		
-		String[] s = msg.replaceFirst("signUp", "").replaceAll("\n\r", "").trim().split(":", 2);
+		String[] s = msg.replaceFirst("signin ", "").replaceAll("\n\r", "").trim().split(":", 2);
 		userName = s[0];
 		password = s[1];
 		
 		// TODO заменить на обращение к БД
-		if ("user1".equalsIgnoreCase(userName) && "pass".equals(password)) {
-			ctx.writeAndFlush("Hello user1");
+		if (AuthHandler.authData.containsKey(userName) && password.equals(AuthHandler.authData.get(userName))) {
+			if (usersOnline.contains(userName)) {
+				ctx.writeAndFlush("User already signed in");
+			} else {
+				usersOnline.add(userName);
+				ctx.writeAndFlush("Hello " + userName);
+				ctx.fireChannelRead("set_user_name " + userName);
+				ctx.fireChannelRead("ls");
+				ctx.pipeline().remove(AuthHandler.class);
+			}
 		} else {
-			ctx.writeAndFlush("Wrong user name or password!");
+			ctx.writeAndFlush("Wrong name or password");
 		}
 	}
 }

@@ -8,28 +8,19 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Arrays;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static java.nio.file.FileVisitResult.CONTINUE;
 
 public class CommandsHandler extends SimpleChannelInboundHandler<String> {
-	private static final String[] commandList = {
-		"\tls         view all files from current directory",
-		"\ttouch      create new file",
-		"\tmkdir      create new directory",
-		"\tcd         (path | ~ | ..) change current directory to path, to root or one level up",
-		"\trm         (filename / dir_name) remove file / directory",
-		"\tcopy       (src) (target) copy file or directory from src path to target path",
-		"\tcat        (filename) view text file",
-		"\tchangenick (nickname) change user's nickname",
-		"\n\r"
-	}; // TODO
-	
-	String userName = "User1";
-	String currentPath = Paths.get("server", userName).toString();
+
+	String userName;
+	String currentPath;
 	
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) {
+		AuthHandler.usersOnline.remove(AuthHandler.users.get(ctx.channel()));
 		System.out.println("client disconnected: " + ctx.channel());
 	}
 	
@@ -41,14 +32,12 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 				.replace("\n", "");
 		System.out.println(command); //TODO
 		
-		if ("--help".equals(command)) {
-			for (String c : commandList) {
-				ctx.writeAndFlush(c);
-			}
-		} else if ("ls".equals(command)) {
-			ctx.writeAndFlush(getFilesList(currentPath));
+		if (command.startsWith("set_user_name ")) {
+			setUpUser(command);
+		} else if (command.startsWith("ls")) {
+			ctx.writeAndFlush(getFilesList("ls name", currentPath)); // TODO: добавить в конец каждой команды вызов ls
 		} else if (command.startsWith("touch ")) {
-			ctx.writeAndFlush(createFile(command, currentPath));
+			ctx.writeAndFlush(createFile(command, currentPath)); //TODO убрать currentPath - будет передаваться от клиента
 		} else if (command.startsWith("mkdir ")) {
 			ctx.writeAndFlush(makeDirectory(command, currentPath));
 		} else if (command.startsWith("cd ")) {
@@ -59,23 +48,103 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 			ctx.writeAndFlush(copy(command, currentPath));
 		} else if (command.startsWith("cat ")) {
 			ctx.writeAndFlush(viewFile(command));
-		} else if (command.startsWith("changenick ")) {
+		} else if (command.startsWith("changenick ")) { //TODO: удалить метод
 			ctx.writeAndFlush(changeUserName(command));
+		} else if (command.startsWith("rename ")) {
+			ctx.writeAndFlush(rename(command));
+		} else if (command.startsWith("sort ")) {
+			ctx.writeAndFlush(getFilesList(command, currentPath));
+//		} else if (command.startsWith("move ")) {
+//			ctx.writeAndFlush(move(command));
+//		} else if (command.startsWith("download ")) {
+//			ctx.writeAndFlush(download(command));
+//		} else if (command.startsWith("upload ")) {
+//			ctx.writeAndFlush(upload(command));
+//		} else if (command.startsWith("search ")) {
+//			ctx.writeAndFlush(search(command));
+		} else {
+			ctx.writeAndFlush(msg);
 		}
 		
-		String startOfLine = "!newline!" + currentPath.replaceFirst("server", "") + "> ";
+		String startOfLine = "!newline!" + currentPath.replaceFirst("server", "") + "> "; //TODO удалить
 		ctx.writeAndFlush(startOfLine);
 	}
 	
-	// Получение списка файлов и папок в текущей директории
-	private String getFilesList(String currentPath) {
-		String[] servers = new File(currentPath).list();
-		if (servers != null && servers.length > 0) {
-			Arrays.sort(servers);
-			return String.join(" ", servers).concat("\n\r");
-		} else {
-			return "\n\r";
+	private String rename(String command) throws IOException {
+		String[] s = command.trim().split(" ", 3);
+		if (s.length < 3) {
+			return "Wrong command";
 		}
+		String oldName = s[1];
+		String newName = s[2];
+		
+		Files.move(Paths.get(oldName), Paths.get(newName));
+		return "\n\r";
+	}
+	
+	private void setUpUser(String command) {
+		String[] s = command.split(" ", 2);
+		userName = s[1];
+		currentPath = Paths.get("server", userName).toString();
+	}
+	
+	// Получение списка файлов и папок в текущей директории
+	private String getFilesList(String param, String currentPath) throws IOException {
+		List<String> result = null;
+		String[] params = param.split(" ", 3);
+		
+		String[] s = new File(currentPath).list();
+		if (s != null && s.length > 0) {
+			if ("name".equals(params[1])) {
+				result = Files.list(Paths.get(currentPath))
+					.map(p -> new File(p.toString()).getName())
+					.sorted().collect(Collectors.toList());
+			} else if ("type".equals(params[1])) {
+				result = Files.list(Paths.get(currentPath))
+					.sorted(
+						(p1, p2) -> {
+							String type1 = getFileExtension(p1);
+							String type2 = getFileExtension(p2);
+							return type1.compareTo(type2);
+						})
+					.map(p -> new File(p.toString()).getName())
+					.collect(Collectors.toList());
+			} else if ("size".equals(params[1])) {
+				result = Files.list(Paths.get(currentPath))
+					.sorted(
+						(p1, p2) -> {
+							Long size1 = new File(p1.toString()).length();
+							Long size2 = new File(p2.toString()).length();
+							return size1.compareTo(size2);
+						})
+					.map(p -> new File(p.toString()).getName())
+					.collect(Collectors.toList()
+					);
+			} else if ("date".equals(params[1])) {
+				result = Files.list(Paths.get(currentPath))
+					.sorted(
+						(p1, p2) -> {
+							Date date1 = new Date(new File(p1.toString()).lastModified());
+							Date date2 = new Date(new File(p2.toString()).lastModified());
+							return date1.compareTo(date2);
+						})
+					.map(p -> new File(p.toString()).getName())
+					.collect(Collectors.toList()
+				);
+			}
+			return result.toString();
+		} else {
+			return "";
+		}
+	}
+	
+	private String getFileExtension(Path path) {
+		String pathFile = path.toString();
+		int lastIndexOf = pathFile.lastIndexOf(".");
+		if (lastIndexOf == -1) {
+			return "";
+		}
+		return pathFile.substring(lastIndexOf);
 	}
 	
 	// Изменение имени пользователя
