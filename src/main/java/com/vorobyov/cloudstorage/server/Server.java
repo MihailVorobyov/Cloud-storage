@@ -1,6 +1,7 @@
 package com.vorobyov.cloudstorage.server;
 
 import com.vorobyov.cloudstorage.server.handlers.AuthHandler;
+import com.vorobyov.cloudstorage.server.handlers.ByteBufInputHandler;
 import com.vorobyov.cloudstorage.server.handlers.NewLineHandler;
 import com.vorobyov.cloudstorage.server.handlers.CommandsHandler;
 import io.netty.bootstrap.ServerBootstrap;

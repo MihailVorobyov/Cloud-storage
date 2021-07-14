@@ -25,19 +25,14 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 	static List<String> usersOnline = new ArrayList<>();
 	
 	@Override
-	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		System.out.println("client connected: " + ctx.channel());
-		ctx.writeAndFlush("Authentication\n\r"); //TODO удалить
-		ctx.writeAndFlush(AuthHandler.authData.toString() + "\n\r");
-		ctx.writeAndFlush(AuthHandler.usersOnline.toString() + "\n\r");
-	}
-	
-	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
 		if (msg.startsWith("signin ")) {
 			signIn(ctx, msg);
 		} else if (msg.startsWith("signup ")) {
 			signUp(ctx, msg);
+			//TODO: для быстрого входа при тестах
+		} else {
+			signUp(ctx, "signup user1:pass1\n\r");
 		}
 	}
 	
@@ -90,9 +85,8 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 				ctx.writeAndFlush("User already signed in");
 			} else {
 				usersOnline.add(userName);
-				ctx.writeAndFlush("Hello " + userName);
+				ctx.writeAndFlush("Hello " + userName + "!\n\r");
 				ctx.fireChannelRead("set_user_name " + userName);
-				ctx.fireChannelRead("ls");
 				ctx.pipeline().remove(AuthHandler.class);
 			}
 		} else {

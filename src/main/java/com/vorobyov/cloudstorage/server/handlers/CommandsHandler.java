@@ -10,6 +10,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.nio.file.FileVisitResult.CONTINUE;
 
@@ -17,6 +18,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 
 	String userName;
 	String currentPath;
+	String sortBy;
 	
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) {
@@ -33,9 +35,9 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		System.out.println(command); //TODO
 		
 		if (command.startsWith("set_user_name ")) {
-			setUpUser(command);
+			ctx.writeAndFlush(setUpUser(command));
 		} else if (command.startsWith("ls")) {
-			ctx.writeAndFlush(getFilesList("ls name", currentPath)); // TODO: добавить в конец каждой команды вызов ls
+			ctx.writeAndFlush(getFilesList("ls " + sortBy, currentPath));
 		} else if (command.startsWith("touch ")) {
 			ctx.writeAndFlush(createFile(command, currentPath)); //TODO убрать currentPath - будет передаваться от клиента
 		} else if (command.startsWith("mkdir ")) {
@@ -54,20 +56,139 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 			ctx.writeAndFlush(rename(command));
 		} else if (command.startsWith("sort ")) {
 			ctx.writeAndFlush(getFilesList(command, currentPath));
-//		} else if (command.startsWith("move ")) {
-//			ctx.writeAndFlush(move(command));
+		} else if (command.startsWith("move ")) {
+			ctx.writeAndFlush(move(command));
 //		} else if (command.startsWith("download ")) {
 //			ctx.writeAndFlush(download(command));
-//		} else if (command.startsWith("upload ")) {
-//			ctx.writeAndFlush(upload(command));
-//		} else if (command.startsWith("search ")) {
-//			ctx.writeAndFlush(search(command));
+		} else if (command.startsWith("upload ")) {
+			ctx.writeAndFlush(upload(command, ctx));
+		} else if (command.startsWith("search ")) {
+			ctx.writeAndFlush(search(command.replaceFirst("search ", "")));
 		} else {
 			ctx.writeAndFlush(msg);
 		}
 		
 		String startOfLine = "!newline!" + currentPath.replaceFirst("server", "") + "> "; //TODO удалить
 		ctx.writeAndFlush(startOfLine);
+	}
+	
+	/**
+	 * Загружает файл с клиента на сервер.
+	 * @param command Строка вида "upload путь_к_файлу размер_файла"
+	 * @return возвращает содержимое текущей директории
+	 */
+	private String upload(String command, ChannelHandlerContext context) throws IOException {
+		String[] s = command.split(" ", 4);
+		Path filePath = Paths.get(s[1]);
+		int fileSize = Integer.getInteger(s[2]);
+		context.pipeline().addFirst(new ByteBufInputHandler(filePath, fileSize));
+		
+		return getFilesList("_ ".concat(sortBy), currentPath);
+	}
+	
+	private String search(String charSequence) throws IOException {
+		List<String> result = null;
+		String[] s = new File(currentPath).list();
+		
+		final List<Path> walkResult = null;
+		Files.walkFileTree(Paths.get(currentPath), new SimpleFileVisitor<Path>() {
+			
+			
+			@Override
+			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+				walkResult.add(dir.getFileName());
+				return FileVisitResult.CONTINUE;
+			}
+			
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					walkResult.add(file.getFileName());
+				return FileVisitResult.CONTINUE;
+			}
+			
+		});
+		
+		if (s.length > 0) {
+			result = Files.list(Paths.get(currentPath))
+				.filter(r -> r.getFileName().toString().matches("(.*)" + charSequence + "(.*)"))
+				.sorted((p1, p2) -> {
+					int r = 0;
+					if ("name".equals(sortBy)) {
+						String name1 = new File(p1.toString()).getName();
+						String name2 = new File(p2.toString()).getName();
+						r = name1.compareTo(name2);
+					} else if ("type".equals(sortBy)) {
+						String type1 = getFileExtension(Paths.get(p1.toString()));
+						String type2 = getFileExtension(Paths.get(p2.toString()));
+						r = type1.compareTo(type2);
+					} else if ("size".equals(sortBy)) {
+						Long size1 = new File(p1.toString()).length();
+						Long size2 = new File(p2.toString()).length();
+						r = size1.compareTo(size2);
+					} else if ("date".equals(sortBy)) {
+						Date date1 = new Date(new File(p1.toString()).lastModified());
+						Date date2 = new Date(new File(p2.toString()).lastModified());
+						r = date1.compareTo(date2);
+					}
+					return r;
+				})
+				.map(p -> new File(p.toString()).getName())
+				.collect(Collectors.toList());
+		}
+		return result.toString();
+	}
+	
+	private String move(String command) throws IOException {
+		String[] s = command.trim().split(" ", 3);
+		if (s.length < 3) {
+			return "Wrong command";
+		}
+		String sourcePath = s[1];
+		String targetPath = s[2];
+		
+		if (Files.isDirectory(Paths.get(sourcePath))) {
+			moveDirectory(sourcePath, targetPath);
+			
+		} else {
+			String fileName = new File(sourcePath).getName();
+			Files.move(Paths.get(currentPath, sourcePath), Paths.get(currentPath, targetPath, fileName));
+		}
+		return getFilesList("_ " + sortBy, currentPath);
+	}
+	
+	private void moveDirectory (String src, String trg) {
+		Path source = Paths.get(src);
+		Path target = Paths.get(trg);
+		
+		try {
+			Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+					Path targetDir = target.resolve(source.relativize(dir));
+					try {
+						Files.createDirectories(targetDir);
+					} catch (FileAlreadyExistsException e) {
+						if (!Files.isDirectory(targetDir))
+							throw e;
+					}
+					return CONTINUE;
+				}
+				
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					Files.move(file, target.resolve(source.relativize(file)));
+					return CONTINUE;
+				}
+				
+				@Override
+				public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+					Files.deleteIfExists(dir);
+					return CONTINUE;
+				}
+			});
+		} catch(IOException e){
+			e.printStackTrace();
+		}
 	}
 	
 	private String rename(String command) throws IOException {
@@ -78,64 +199,74 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		String oldName = s[1];
 		String newName = s[2];
 		
-		Files.move(Paths.get(oldName), Paths.get(newName));
-		return "\n\r";
+		Files.move(Paths.get(currentPath, oldName), Paths.get(currentPath, newName));
+		return getFilesList("_ " + sortBy, currentPath);
 	}
 	
-	private void setUpUser(String command) {
+	private String setUpUser(String command) {
 		String[] s = command.split(" ", 2);
 		userName = s[1];
 		currentPath = Paths.get("server", userName).toString();
+		sortBy = "name";
+		return getFilesList("_ ".concat(sortBy), currentPath);
 	}
 	
 	// Получение списка файлов и папок в текущей директории
-	private String getFilesList(String param, String currentPath) throws IOException {
-		List<String> result = null;
-		String[] params = param.split(" ", 3);
-		
-		String[] s = new File(currentPath).list();
-		if (s != null && s.length > 0) {
-			if ("name".equals(params[1])) {
-				result = Files.list(Paths.get(currentPath))
-					.map(p -> new File(p.toString()).getName())
-					.sorted().collect(Collectors.toList());
-			} else if ("type".equals(params[1])) {
-				result = Files.list(Paths.get(currentPath))
-					.sorted(
-						(p1, p2) -> {
-							String type1 = getFileExtension(p1);
-							String type2 = getFileExtension(p2);
-							return type1.compareTo(type2);
-						})
-					.map(p -> new File(p.toString()).getName())
-					.collect(Collectors.toList());
-			} else if ("size".equals(params[1])) {
-				result = Files.list(Paths.get(currentPath))
-					.sorted(
-						(p1, p2) -> {
-							Long size1 = new File(p1.toString()).length();
-							Long size2 = new File(p2.toString()).length();
-							return size1.compareTo(size2);
-						})
-					.map(p -> new File(p.toString()).getName())
-					.collect(Collectors.toList()
-					);
-			} else if ("date".equals(params[1])) {
-				result = Files.list(Paths.get(currentPath))
-					.sorted(
-						(p1, p2) -> {
-							Date date1 = new Date(new File(p1.toString()).lastModified());
-							Date date2 = new Date(new File(p2.toString()).lastModified());
-							return date1.compareTo(date2);
-						})
-					.map(p -> new File(p.toString()).getName())
-					.collect(Collectors.toList()
-				);
+	
+	/**
+	 * Сортирует содержимое текущей директории
+	 * @param command Команда вида "(ls | sort) (name | size | type | date)")
+	 * @param currentPath Текущая_директория
+	 * @return Возвращает содержимое текущей директории в виде строки (пример: [file1.txt, file2.txt, dir1, dir2])
+	 */
+	private String getFilesList(String command, String currentPath) {
+		List<String> result = new ArrayList<>();
+		String[] params = command.split(" ", 2);
+		sortBy = params[1];
+		try {
+			String[] s = new File(currentPath).list();
+			if (s != null && s.length > 0) {
+				if ("name".equals(sortBy)) {
+					result = Files.list(Paths.get(currentPath))
+						.map(p -> new File(p.toString()).getName())
+						.sorted().collect(Collectors.toList());
+				} else if ("type".equals(sortBy)) {
+					result = Files.list(Paths.get(currentPath))
+						.sorted(
+							(p1, p2) -> {
+								String type1 = getFileExtension(p1);
+								String type2 = getFileExtension(p2);
+								return type1.compareTo(type2);
+							})
+						.map(p -> new File(p.toString()).getName())
+						.collect(Collectors.toList());
+				} else if ("size".equals(sortBy)) {
+					result = Files.list(Paths.get(currentPath))
+						.sorted(
+							(p1, p2) -> {
+								Long size1 = new File(p1.toString()).length();
+								Long size2 = new File(p2.toString()).length();
+								return size1.compareTo(size2);
+							})
+						.map(p -> new File(p.toString()).getName())
+						.collect(Collectors.toList()
+						);
+				} else if ("date".equals(sortBy)) {
+					result = Files.list(Paths.get(currentPath))
+						.sorted(
+							(p1, p2) -> {
+								Date date1 = new Date(new File(p1.toString()).lastModified());
+								Date date2 = new Date(new File(p2.toString()).lastModified());
+								return date1.compareTo(date2);
+							})
+						.map(p -> new File(p.toString()).getName())
+						.collect(Collectors.toList());
+				}
 			}
-			return result.toString();
-		} else {
-			return "";
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
+		return result.toString();
 	}
 	
 	private String getFileExtension(Path path) {
@@ -192,17 +323,14 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 			
 			if (Files.isRegularFile(source)) {
 				Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-				return "File copied";
 			} else if (Files.isDirectory(source)){
 				copyDirectory(source, target);
-				return "Directory copied";
 			}
-			
 		} catch (IOException e) {
 			e.printStackTrace();
 			return e.getMessage();
 		}
-		return "Something wrong";
+		return getFilesList("_ ".concat(sortBy), currentPath);
 	}
 	
 	// копирование директории
@@ -266,14 +394,13 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 						return CONTINUE;
 					}
 				});
-				
-				return Files.exists(target) ? "Something wrong" : "Directory deleted";
 			} else {
-				return Files.deleteIfExists(target) ? "File deleted" : "Delete filed";
+				Files.deleteIfExists(target);
 			}
 		} else {
 			return "File / directory not found";
 		}
+		return getFilesList("_ ".concat(sortBy), currentPath);
 	}
 	
 	// изменение текущей директории
@@ -290,11 +417,11 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		
 		if ("~".equals(path)) {
 			this.currentPath = Paths.get("server", userName).toString();
-			msg = "";
+			msg = getFilesList("_ ".concat(sortBy), this.currentPath);
 		} else if ("..".equals(path)) {
 			if (Paths.get(currentPath).getParent().startsWith(Paths.get("server", userName))) {
 				this.currentPath = Paths.get(currentPath).getParent().toString();
-				msg = "";
+				msg = getFilesList("_ ".concat(sortBy), this.currentPath);
 			}
 		} else {
 			if (Paths.get(currentPath, path).normalize().startsWith(Paths.get("server", userName))
@@ -302,7 +429,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 						&& Files.exists(Paths.get(currentPath, path))) {
 				
 				this.currentPath = Paths.get(currentPath, path).normalize().toString();
-				msg = "";
+				msg = getFilesList("_ ".concat(sortBy), this.currentPath);
 			} else {
 				msg = "Wrong path!\n\r";
 			}
@@ -325,7 +452,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return "";
+		return getFilesList("_ ".concat(sortBy), currentPath);
 	}
 	
 	// создание директории
@@ -344,6 +471,6 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 			e.printStackTrace();
 			return e.getMessage();
 		}
-		return "";
+		return getFilesList("_ ".concat(sortBy), currentPath);
 	}
 }
