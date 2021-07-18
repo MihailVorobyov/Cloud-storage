@@ -10,7 +10,6 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.nio.file.FileVisitResult.CONTINUE;
 
@@ -27,7 +26,13 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	}
 	
 	@Override
+	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+		cause.printStackTrace();
+	}
+	
+	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
+		System.out.println("CommandsHandler.channelRead0");
 		
 		String command = msg
 				.replace("\r", "")
@@ -61,55 +66,58 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 //		} else if (command.startsWith("download ")) {
 //			ctx.writeAndFlush(download(command));
 		} else if (command.startsWith("upload ")) {
-			ctx.writeAndFlush(upload(command, ctx));
+//			ctx.writeAndFlush(upload(command + " C:\\images.pdf " + Files.size(Paths.get("C:\\images.pdf")), ctx));
+			upload(command, ctx);
 		} else if (command.startsWith("search ")) {
 			ctx.writeAndFlush(search(command.replaceFirst("search ", "")));
 		} else {
 			ctx.writeAndFlush(msg);
 		}
-		
-		String startOfLine = "!newline!" + currentPath.replaceFirst("server", "") + "> "; //TODO удалить
-		ctx.writeAndFlush(startOfLine);
 	}
 	
 	/**
-	 * Загружает файл с клиента на сервер.
-	 * @param command Строка вида "upload путь_к_файлу размер_файла"
+	 * Метод для загрузка файла с клиента на сервер.
+	 * @param command Строка вида "upload путь_к_файлу_на_сервере размер_файла"
 	 * @return возвращает содержимое текущей директории
 	 */
 	private String upload(String command, ChannelHandlerContext context) throws IOException {
-		String[] s = command.split(" ", 4);
+		String[] s = command.split(" ", 3);
 		Path filePath = Paths.get(s[1]);
-		int fileSize = Integer.getInteger(s[2]);
+		int fileSize = Integer.parseInt(s[2]);
 		context.pipeline().addFirst(new ByteBufInputHandler(filePath, fileSize));
 		
 		return getFilesList("_ ".concat(sortBy), currentPath);
 	}
 	
+	/**
+	 * Метод для поиска файлов и директорий, имена которых содержат указанную последовательность символов
+	 * @param charSequence Последовательность символов, которую требуется найти.
+	 * @return Возвращает список имён файлов и директорий, содержащих charSequence
+	 * @throws IOException
+	 */
 	private String search(String charSequence) throws IOException {
 		List<String> result = null;
 		String[] s = new File(currentPath).list();
 		
-		final List<Path> walkResult = null;
+		List<Path> walkResult = new ArrayList<>();
 		Files.walkFileTree(Paths.get(currentPath), new SimpleFileVisitor<Path>() {
-			
 			
 			@Override
 			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-				walkResult.add(dir.getFileName());
+				walkResult.add(dir);
 				return FileVisitResult.CONTINUE;
 			}
 			
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					walkResult.add(file.getFileName());
+					walkResult.add(file);
 				return FileVisitResult.CONTINUE;
 			}
 			
 		});
 		
-		if (s.length > 0) {
-			result = Files.list(Paths.get(currentPath))
+		if (!walkResult.isEmpty()) {
+			result = walkResult.stream()
 				.filter(r -> r.getFileName().toString().matches("(.*)" + charSequence + "(.*)"))
 				.sorted((p1, p2) -> {
 					int r = 0;
@@ -211,10 +219,8 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return getFilesList("_ ".concat(sortBy), currentPath);
 	}
 	
-	// Получение списка файлов и папок в текущей директории
-	
 	/**
-	 * Сортирует содержимое текущей директории
+	 * Сортирует и возвращает содержимое текущей директории
 	 * @param command Команда вида "(ls | sort) (name | size | type | date)")
 	 * @param currentPath Текущая_директория
 	 * @return Возвращает содержимое текущей директории в виде строки (пример: [file1.txt, file2.txt, dir1, dir2])
@@ -455,7 +461,12 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return getFilesList("_ ".concat(sortBy), currentPath);
 	}
 	
-	// создание директории
+	/**
+	 * Создаёт директорию
+	 * @param command строка вида "mkdir currentPath/имя_директории"
+	 * @param currentPath
+	 * @return
+	 */
 	private String makeDirectory(String command, String currentPath) {
 		String[] arguments = command.split(" ", 2);
 		if (arguments.length < 2) {

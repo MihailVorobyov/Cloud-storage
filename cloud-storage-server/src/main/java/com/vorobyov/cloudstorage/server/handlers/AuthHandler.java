@@ -26,13 +26,12 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
+		System.out.println("AuthHandler.channelRead0");
+		
 		if (msg.startsWith("signin ")) {
 			signIn(ctx, msg);
 		} else if (msg.startsWith("signup ")) {
 			signUp(ctx, msg);
-			//TODO: для быстрого входа при тестах
-		} else {
-			signUp(ctx, "signup user1:pass1\n\r");
 		}
 	}
 	
@@ -42,13 +41,17 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 	 * Регистрация происходит путём проверки базы данных "users" и добавления новой записи.
 	 * @param ctx ChannelHandlerContext
 	 * @param msg Сообщение от пользователя, которое начинается с символов "signup"
-	 * @return
 	 */
 	private void signUp(ChannelHandlerContext ctx, String msg) throws IOException {
+		System.out.println("AuthHandler.signUp");
+		
 		String userName;
 		String password;
 		
-		String[] s = msg.replaceFirst("signup", "").replaceAll("\n\r", "").trim().split(":", 2);
+		String[] s = msg.replaceFirst("signup ", "")
+			.replaceAll("\n", "")
+			.replaceAll("\r", "")
+			.trim().split(":", 2);
 		userName = s[0];
 		password = s[1];
 		
@@ -72,10 +75,15 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 	 * @return
 	 */
 	private void signIn(ChannelHandlerContext ctx, String msg) {
+		System.out.println("AuthHandler.signIn");
+		
 		String userName;
 		String password;
 		
-		String[] s = msg.replaceFirst("signin ", "").replaceAll("\n\r", "").trim().split(":", 2);
+		String[] s = msg.replaceFirst("signin ", "")
+			.replaceAll("\n", "")
+			.replaceAll("\r", "")
+			.trim().split(":", 2);
 		userName = s[0];
 		password = s[1];
 		

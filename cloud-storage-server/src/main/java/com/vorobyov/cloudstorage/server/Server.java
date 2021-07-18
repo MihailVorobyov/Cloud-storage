@@ -1,9 +1,6 @@
 package com.vorobyov.cloudstorage.server;
 
-import com.vorobyov.cloudstorage.server.handlers.AuthHandler;
-import com.vorobyov.cloudstorage.server.handlers.ByteBufInputHandler;
-import com.vorobyov.cloudstorage.server.handlers.NewLineHandler;
-import com.vorobyov.cloudstorage.server.handlers.CommandsHandler;
+import com.vorobyov.cloudstorage.server.handlers.*;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -29,10 +26,9 @@ public class Server {
 					protected void initChannel(Channel channel) throws Exception {
 						channel.pipeline().addLast(
 							new StringDecoder(),
-							new StringEncoder(),
 							new AuthHandler(),
-							new NewLineHandler(),
-							new CommandsHandler()
+							new CommandsHandler(),
+							new OutputHandler()
 						);
 					}
 				});
