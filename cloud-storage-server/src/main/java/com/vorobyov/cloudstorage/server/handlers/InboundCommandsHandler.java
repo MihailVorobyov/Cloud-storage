@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 import static java.nio.file.FileVisitResult.CONTINUE;
 
-public class CommandsHandler extends SimpleChannelInboundHandler<String> {
+public class InboundCommandsHandler extends SimpleChannelInboundHandler<String> {
 
 	String userName;
 	String currentPath;
@@ -21,7 +21,6 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) {
-		AuthHandler.usersOnline.remove(AuthHandler.users.get(ctx.channel()));
 		System.out.println("client disconnected: " + ctx.channel());
 	}
 	
@@ -37,10 +36,11 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		String command = msg
 				.replace("\r", "")
 				.replace("\n", "");
-		System.out.println(command); //TODO
+		System.out.println(command);
 		
 		if (command.startsWith("set_user_name ")) {
-			ctx.writeAndFlush(setUpUser(command));
+			setUpUser(command);
+			ctx.write("ok");
 		} else if (command.startsWith("ls")) {
 			ctx.writeAndFlush(getFilesList("ls " + sortBy, currentPath));
 		} else if (command.startsWith("touch ")) {
@@ -71,7 +71,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		} else if (command.startsWith("search ")) {
 			ctx.writeAndFlush(search(command.replaceFirst("search ", "")));
 		} else {
-			ctx.writeAndFlush(msg);
+			ctx.write(command);
 		}
 	}
 	
@@ -82,9 +82,9 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	 */
 	private String upload(String command, ChannelHandlerContext context) throws IOException {
 		String[] s = command.split(" ", 3);
-		Path filePath = Paths.get(s[1]);
-		int fileSize = Integer.parseInt(s[2]);
-		context.pipeline().addFirst(new ByteBufInputHandler(filePath, fileSize));
+		String filePath = Paths.get("cloud-storage-server", "server", s[1]).toString();
+		long fileSize = Long.parseLong(s[2]);
+		context.pipeline().addFirst(new InboundUploadFileHandler(filePath, fileSize));
 		
 		return getFilesList("_ ".concat(sortBy), currentPath);
 	}

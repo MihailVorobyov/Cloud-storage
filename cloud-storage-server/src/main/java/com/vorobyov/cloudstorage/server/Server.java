@@ -8,8 +8,6 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.string.StringDecoder;
-import io.netty.handler.codec.string.StringEncoder;
 
 public class Server {
 	public Server() {
@@ -25,10 +23,10 @@ public class Server {
 					@Override
 					protected void initChannel(Channel channel) throws Exception {
 						channel.pipeline().addLast(
-							new StringDecoder(),
-							new AuthHandler(),
-							new CommandsHandler(),
-							new OutputHandler()
+							new InboundByteBufToStringHandler(),
+							new OutboundHandler(),
+							new InboundAuthHandler(),
+							new InboundCommandsHandler()
 						);
 					}
 				});

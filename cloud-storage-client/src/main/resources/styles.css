@@ -1,0 +1,44 @@
+.button {
+    -fx-background-repeat: no-repeat;
+    -fx-background-position: center center;
+}
+
+#copyButton {
+    -fx-background-image: url("images/32x32/Copy.png");
+}
+
+#cutButton {
+    -fx-background-image: url("images/32x32/Cut.png");
+}
+
+#deleteButton {
+    -fx-background-image: url("images/32x32/Delete.png");
+}
+
+#downloadButton {
+    -fx-background-image: url("images/32x32/Download.png");
+}
+
+#makeDirButton {
+    -fx-background-image: url("images/32x32/Make_dir.png");
+}
+
+#pasteButton {
+    -fx-background-image: url("images/32x32/Paste.png");
+}
+
+#renameButton {
+    -fx-background-image: url("images/32x32/Rename.png");
+}
+
+#searchButton {
+    -fx-background-image: url("images/32x32/Search.png");
+}
+
+#uploadButton {
+    -fx-background-image: url("images/32x32/Upload.png");
+}
+
+#buttonsPane {
+    -fx-vgap: 5;
+}

@@ -17,7 +17,7 @@ import java.util.Map;
  * @version 1.00 2021-07-09
  * Отвечает за регистрацию нового пользователя и аутентификацию при входе.
  */
-public class AuthHandler extends SimpleChannelInboundHandler<String> {
+public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
 	
 	// TODO: удалить поля после создания БД
 	static Map<Channel, String> users = new HashMap<>();
@@ -56,11 +56,11 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 		password = s[1];
 		
 		// TODO заменить на обращение к БД
-		if (AuthHandler.authData.containsKey(userName)) {
+		if (InboundAuthHandler.authData.containsKey(userName)) {
 			ctx.writeAndFlush("User already exists");
 		} else {
-			AuthHandler.users.put(ctx.channel(), userName);
-			AuthHandler.authData.put(userName, password);
+			InboundAuthHandler.users.put(ctx.channel(), userName);
+			InboundAuthHandler.authData.put(userName, password);
 			if (!Files.exists(Paths.get("server" + File.separator + userName))) {
 				Files.createDirectories(Paths.get("server" + File.separator + userName));
 			}
@@ -88,14 +88,14 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 		password = s[1];
 		
 		// TODO заменить на обращение к БД
-		if (AuthHandler.authData.containsKey(userName) && password.equals(AuthHandler.authData.get(userName))) {
+		if (InboundAuthHandler.authData.containsKey(userName) && password.equals(InboundAuthHandler.authData.get(userName))) {
 			if (usersOnline.contains(userName)) {
 				ctx.writeAndFlush("User already signed in");
 			} else {
 				usersOnline.add(userName);
-				ctx.writeAndFlush("Hello " + userName + "!\n\r");
+//				ctx.writeAndFlush("Hello " + userName + "!\n\r");
+				ctx.pipeline().remove(InboundAuthHandler.class);
 				ctx.fireChannelRead("set_user_name " + userName);
-				ctx.pipeline().remove(AuthHandler.class);
 			}
 		} else {
 			ctx.writeAndFlush("Wrong name or password");
