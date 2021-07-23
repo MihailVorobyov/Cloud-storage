@@ -1,7 +1,11 @@
 package com.vorobyov.cloudstorage.client.sample;
 
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -10,13 +14,20 @@ import javafx.stage.Stage;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 public class AuthController {
 	
-	Socket socket;
-	DataOutputStream out;
-	DataInputStream in;
+	static final String DELIMITER = " ";
+	static Socket  socket;
+	static DataInputStream in;
+	static DataOutputStream out;
+	static ReadableByteChannel rbc;
+	static ByteBuffer byteBuffer;
 	
 	@FXML
 	public TextField loginField;
@@ -41,25 +52,37 @@ public class AuthController {
 				socket = new Socket(MainController.ADDRESS, MainController.PORT);
 				out = new DataOutputStream(socket.getOutputStream());
 				in = new DataInputStream(socket.getInputStream());
-				
-				System.out.println("signup " + loginField.getText() + ":" + passwordField.getText());
-				
+				rbc = Channels.newChannel(in);
+				byteBuffer = ByteBuffer.allocate(8 * 1024);
+
 				write("signup " + loginField.getText() + ":" + passwordField.getText());
 				
 				result = read();
 				
 				message.setText(result);
 				
-			if (result == null) {
-				System.out.println("null!!!!!!!!");
-			} else if ("OK".equals(result)) {
-				exitSignup();
-			}
+				if ("OK".equals(result.replace("\n", "").replace("\r", "").trim())) {
+					this.loginField.getScene().getWindow().hide();
+					Main main = new Main();
+					main.showWindow();
+//					Stage primaryStage = new Stage();
+//					Parent root = FXMLLoader.load(getClass().getResource("/mainSample.fxml"));
+//					primaryStage.setTitle("Cloud storage");
+//					primaryStage.setScene(new Scene(root, 1300, 480));
+//					primaryStage.setResizable(false);
+//					primaryStage.setOnCloseRequest(e -> {
+//						Platform.exit();
+//						System.exit(0);
+//					});
+//					primaryStage.show();
+				}
 			
 			} catch (Exception e) {
 				e.printStackTrace();
 			}finally {
 				try {
+					
+					rbc.close();
 					in.close();
 					out.close();
 					socket.close();
@@ -79,7 +102,9 @@ public class AuthController {
 	
 	public void exitSignup() throws Exception {
 		Main main = new Main();
-		main.showWindow();
+		main.start(new Stage());
+		
+		
 		Stage stage = (Stage) loginField.getScene().getWindow();
 		stage.close();
 	}
@@ -89,17 +114,11 @@ public class AuthController {
 	}
 		
 	public String read () throws IOException {
-		byte[] data = null;
-		int length;
 		
-		while (true) {
-			if ((length = in.available()) > 0) {
-				data = new byte[length];
-				in.readFully(data, 0, length);
-			} else {
-				break;
-			}
-		}
-		return new String(data, 0, length, StandardCharsets.UTF_8);
+		int readNumberBytes = rbc.read(byteBuffer);
+		String serverAnswer = new String(Arrays.copyOfRange(byteBuffer.array(), 0, readNumberBytes));
+		byteBuffer.clear();
+		return serverAnswer;
+		
 	}
 }

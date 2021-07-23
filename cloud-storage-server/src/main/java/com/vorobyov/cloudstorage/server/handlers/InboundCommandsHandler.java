@@ -41,7 +41,9 @@ public class InboundCommandsHandler extends SimpleChannelInboundHandler<String> 
 		
 		if (command.startsWith("set_user_name ")) {
 			ctx.pipeline().remove(InboundAuthHandler.class);
-			ctx.write(setUpUser(command));
+//			ctx.write(setUpUser(command));
+			setUpUser(command);
+			
 		} else if (command.startsWith("ls")) {
 			ctx.writeAndFlush(getFilesList("ls " + sortBy, currentPath));
 		} else if (command.startsWith("touch ")) {
