@@ -9,12 +9,14 @@ import java.nio.charset.StandardCharsets;
 public class InboundByteBufToStringHandler extends ChannelInboundHandlerAdapter {
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		//TODO удалить
-		System.out.println(this.getClass().getSimpleName() + ".channelActive");
+		//TODO заменить на логгер
+		System.out.println(ctx.channel().remoteAddress() + " connected");
 	}
 	
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+		System.out.println(this.getClass().getSimpleName() + ".channelRead");
+		
 		ByteBuf buf = (ByteBuf) msg;
 		
 		byte[] b = new byte[buf.readableBytes()];

@@ -24,9 +24,10 @@ public class Server {
 					protected void initChannel(Channel channel) throws Exception {
 						channel.pipeline().addLast(
 							new InboundByteBufToStringHandler(),
-							new OutboundHandler(),
 							new InboundAuthHandler(),
-							new InboundCommandsHandler()
+							new InboundCommandsHandler(),
+							new OutboundHandler()
+
 						);
 					}
 				});

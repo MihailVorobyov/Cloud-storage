@@ -64,6 +64,7 @@ public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
 			if (!Files.exists(Paths.get("server" + File.separator + userName))) {
 				Files.createDirectories(Paths.get("server" + File.separator + userName));
 			}
+			
 			signIn(ctx, msg.replaceFirst("signup", "signin"));
 		}
 	}
@@ -90,11 +91,10 @@ public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
 		// TODO заменить на обращение к БД
 		if (InboundAuthHandler.authData.containsKey(userName) && password.equals(InboundAuthHandler.authData.get(userName))) {
 			if (usersOnline.contains(userName)) {
-				ctx.writeAndFlush("User already signed in");
+				ctx.pipeline().get(OutboundHandler.class).write(ctx, "User already signed in", ctx.newPromise());
 			} else {
 				usersOnline.add(userName);
-//				ctx.writeAndFlush("Hello " + userName + "!\n\r");
-				ctx.pipeline().remove(InboundAuthHandler.class);
+				ctx.pipeline().get(OutboundHandler.class).write(ctx, "OK", ctx.newPromise());
 				ctx.fireChannelRead("set_user_name " + userName);
 			}
 		} else {

@@ -2,6 +2,7 @@ package com.vorobyov.cloudstorage.server.handlers;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.util.ReferenceCountUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,8 +40,8 @@ public class InboundCommandsHandler extends SimpleChannelInboundHandler<String> 
 		System.out.println(command);
 		
 		if (command.startsWith("set_user_name ")) {
-			setUpUser(command);
-			ctx.write("ok");
+			ctx.pipeline().remove(InboundAuthHandler.class);
+			ctx.write(setUpUser(command));
 		} else if (command.startsWith("ls")) {
 			ctx.writeAndFlush(getFilesList("ls " + sortBy, currentPath));
 		} else if (command.startsWith("touch ")) {
