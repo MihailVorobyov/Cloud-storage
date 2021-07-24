@@ -9,7 +9,11 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
+import java.util.logging.Logger;
+
 public class Server {
+	Logger logger = Logger.getLogger("server.Server");
+	
 	public Server() {
 		EventLoopGroup auth = new NioEventLoopGroup(1);
 		EventLoopGroup worker = new NioEventLoopGroup();
@@ -27,16 +31,16 @@ public class Server {
 							new InboundAuthHandler(),
 							new InboundCommandsHandler(),
 							new OutboundHandler()
-
 						);
 					}
 				});
 			ChannelFuture future = bootstrap.bind(5000).sync();
-			System.out.println("Server started");
+			logger.info("Server started.");
 			future.channel().closeFuture().sync();
-			System.out.println("Server finished");
+			logger.info("Server finished.");
 		} catch (Exception e) {
 			e.printStackTrace();
+			logger.warning(e.getMessage());
 		} finally {
 			auth.shutdownGracefully();
 			worker.shutdownGracefully();

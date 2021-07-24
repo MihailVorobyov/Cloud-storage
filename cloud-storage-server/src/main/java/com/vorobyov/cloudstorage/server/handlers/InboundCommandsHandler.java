@@ -10,20 +10,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static java.nio.file.FileVisitResult.CONTINUE;
 
 public class InboundCommandsHandler extends SimpleChannelInboundHandler<String> {
-
+	
+	Logger logger = Logger.getLogger("server.handlers.InboundCommandsHandler");
 	String userName;
 	String currentPath;
 	String sortBy;
-	
-	@Override
-	public void channelInactive(ChannelHandlerContext ctx) {
-		System.out.println("client disconnected: " + ctx.channel());
-	}
 	
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
@@ -41,8 +38,8 @@ public class InboundCommandsHandler extends SimpleChannelInboundHandler<String> 
 		
 		if (command.startsWith("set_user_name ")) {
 			ctx.pipeline().remove(InboundAuthHandler.class);
-//			ctx.write(setUpUser(command));
-			setUpUser(command);
+			ctx.write(setUpUser(command));
+//			setUpUser(command);
 			
 		} else if (command.startsWith("ls")) {
 			ctx.writeAndFlush(getFilesList("ls " + sortBy, currentPath));
@@ -73,9 +70,15 @@ public class InboundCommandsHandler extends SimpleChannelInboundHandler<String> 
 			upload(command, ctx);
 		} else if (command.startsWith("search ")) {
 			ctx.writeAndFlush(search(command.replaceFirst("search ", "")));
+		} else if (command.startsWith("disconnect ")) {
+			disconnect(command);
 		} else {
 			ctx.write(command);
 		}
+	}
+	
+	private void disconnect(String command) {
+	
 	}
 	
 	/**

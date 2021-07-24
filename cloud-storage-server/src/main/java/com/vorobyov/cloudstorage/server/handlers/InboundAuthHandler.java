@@ -1,6 +1,6 @@
 package com.vorobyov.cloudstorage.server.handlers;
 
-import io.netty.channel.Channel;
+import com.vorobyov.cloudstorage.server.utils.UserRegistration;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
@@ -8,27 +8,19 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * @version 1.00 2021-07-09
  * Отвечает за регистрацию нового пользователя и аутентификацию при входе.
  */
 public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
-	
-	// TODO: удалить поля после создания БД
-	static Map<Channel, String> users = new HashMap<>();
-	static Map<String, String> authData = new HashMap<>();
-	static List<String> usersOnline = new ArrayList<>();
+	Logger logger = Logger.getLogger("server.handlers.InboundAuthHandler");
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-		System.out.println("AuthHandler.channelRead0");
 		
-		if (msg.startsWith("signin ")) {
+		if (msg.startsWith("signIn ")) {
 			signIn(ctx, msg);
 		} else if (msg.startsWith("signup ")) {
 			signUp(ctx, msg);
@@ -43,7 +35,6 @@ public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
 	 * @param msg Сообщение от пользователя, которое начинается с символов "signup"
 	 */
 	private void signUp(ChannelHandlerContext ctx, String msg) throws IOException {
-		System.out.println("AuthHandler.signUp");
 		
 		String userName;
 		String password;
@@ -55,17 +46,18 @@ public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
 		userName = s[0];
 		password = s[1];
 		
-		// TODO заменить на обращение к БД
-		if (InboundAuthHandler.authData.containsKey(userName)) {
+		if (UserRegistration.authData.containsKey(userName)) {
+			logger.info("User " + userName + " already exists.");
 			ctx.writeAndFlush("User already exists");
 		} else {
-			InboundAuthHandler.users.put(ctx.channel(), userName);
-			InboundAuthHandler.authData.put(userName, password);
+			UserRegistration.authData.put(userName, password);
+			
 			if (!Files.exists(Paths.get("server" + File.separator + userName))) {
 				Files.createDirectories(Paths.get("server" + File.separator + userName));
 			}
 			
-			signIn(ctx, msg.replaceFirst("signup", "signin"));
+			logger.info("User " + userName + " registered.");
+			signIn(ctx, msg.replaceFirst("signup", "signIn"));
 		}
 	}
 	
@@ -73,31 +65,35 @@ public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
 	 * Метод проверяет имя пользователя и пароль на соответствие таковым в базе данных.
 	 * @param ctx ChannelHandlerContext
 	 * @param msg Сообщение от пользователя, которое начинается с символов "signin"
-	 * @return
 	 */
 	private void signIn(ChannelHandlerContext ctx, String msg) {
-		System.out.println("AuthHandler.signIn");
 		
 		String userName;
 		String password;
 		
-		String[] s = msg.replaceFirst("signin ", "")
+		String[] s = msg.replaceFirst("signIn ", "")
 			.replaceAll("\n", "")
 			.replaceAll("\r", "")
 			.trim().split(":", 2);
 		userName = s[0];
 		password = s[1];
 		
-		// TODO заменить на обращение к БД
-		if (InboundAuthHandler.authData.containsKey(userName) && password.equals(InboundAuthHandler.authData.get(userName))) {
-			if (usersOnline.contains(userName)) {
-				ctx.pipeline().get(OutboundHandler.class).write(ctx, "User already signed in", ctx.newPromise());
+		UserRegistration.addressUser.put(ctx.channel().remoteAddress(), userName);
+		
+		if (UserRegistration.authData.containsKey(userName) && password.equals(UserRegistration.authData.get(userName))) {
+			if (UserRegistration.usersOnline.contains(userName)) {
+				logger.info("User " + userName + " try to sign in, but already signed in.");
+//				ctx.pipeline().get(OutboundHandler.class).write(ctx, "User already signed in", ctx.newPromise());
+				UserRegistration.usersOnline.add(userName);
+				ctx.fireChannelRead("User already signed in");
+				
 			} else {
-				usersOnline.add(userName);
+				UserRegistration.usersOnline.add(userName);
 				ctx.pipeline().get(OutboundHandler.class).write(ctx, "OK", ctx.newPromise());
 				ctx.fireChannelRead("set_user_name " + userName);
 			}
 		} else {
+			logger.info("Wrong name or password: name = " + userName + ", password = " + password + ".");
 			ctx.writeAndFlush("Wrong name or password");
 		}
 	}
