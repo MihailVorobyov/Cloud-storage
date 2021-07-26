@@ -88,7 +88,7 @@ public class InboundCommandsHandler extends SimpleChannelInboundHandler<String> 
 	 */
 	private String upload(String command, ChannelHandlerContext context) throws IOException {
 		String[] s = command.split(" ", 3);
-		String filePath = Paths.get("cloud-storage-server", "server", s[1]).toString();
+		String filePath = Paths.get("server", s[1]).toString();
 		long fileSize = Long.parseLong(s[2]);
 		context.pipeline().addFirst(new InboundUploadFileHandler(filePath, fileSize));
 		

@@ -7,15 +7,20 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
+import java.util.Objects;
+
 public class Main extends Application {
     
     Stage stage = new Stage();
 
     @Override
     public void start(Stage primaryStage) throws Exception{
-        Parent root = FXMLLoader.load(getClass().getResource("/mainSample.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/Main.fxml"));
+        Parent root = loader.load();
         primaryStage.setTitle("Cloud storage");
-        primaryStage.setScene(new Scene(root, 1300, 480));
+        Scene scene = new Scene(root, 1300, 480);
+//        root.getStylesheets().add("/stylesMain.css");
+        primaryStage.setScene(scene);
         primaryStage.setResizable(false);
         primaryStage.setOnCloseRequest(e -> {
             Platform.exit();

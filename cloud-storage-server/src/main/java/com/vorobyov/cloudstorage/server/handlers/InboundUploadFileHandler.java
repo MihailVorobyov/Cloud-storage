@@ -14,11 +14,11 @@ import java.nio.file.Paths;
 public class InboundUploadFileHandler extends ChannelInboundHandlerAdapter {
 	private final Path fileToWrite;
 	private final long fileSize;
+	private long bytesRead;
 	
 	public InboundUploadFileHandler(String file, long size) {
 		this.fileToWrite = Paths.get(file);
 		this.fileSize = size;
-
 	}
 	
 	@Override
@@ -31,28 +31,40 @@ public class InboundUploadFileHandler extends ChannelInboundHandlerAdapter {
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		ByteBuf buf = (ByteBuf) msg;
-		byte[] b = new byte[buf.readableBytes()];
-		while (buf.isReadable()) {
-			buf.readBytes(b);
-		}
 		
 		if (!Files.exists(fileToWrite)) {
 			Files.createDirectories(fileToWrite.getParent());
 			Files.createFile(fileToWrite);
 		}
-
+		
 		RandomAccessFile raf = new RandomAccessFile(fileToWrite.toString(), "rw");
 		
-		raf.write(b);
+		while (bytesRead != fileSize) {
+			byte[] b = new byte[buf.readableBytes()];
+			
+			while (buf.isReadable()) {
+				buf.readBytes(b);
+			}
+			buf.release();
+			raf.write(b);
+			bytesRead += b.length;
+		}
+		
+		if (fileSize == Files.size(fileToWrite)) {
+//			ctx.fireChannelRead("ls".getBytes(StandardCharsets.UTF_8));
+			ctx.fireChannelRead("Upload completed".getBytes(StandardCharsets.UTF_8));
+			
+		} else {
+			ctx.fireChannelRead("Upload failed!".getBytes(StandardCharsets.UTF_8));
+		}
+		
 		try {
 			raf.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		
-		buf.release();
-		ctx.fireChannelRead("ls".getBytes(StandardCharsets.UTF_8));
-		ctx.pipeline().remove(InboundUploadFileHandler.class);
 		ctx.pipeline().addFirst(new InboundByteBufToStringHandler());
+		ctx.pipeline().remove(InboundUploadFileHandler.class);
 	}
 }
