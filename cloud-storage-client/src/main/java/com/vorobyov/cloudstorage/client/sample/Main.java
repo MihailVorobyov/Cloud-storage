@@ -1,13 +1,12 @@
 package com.vorobyov.cloudstorage.client.sample;
 
+import com.vorobyov.cloudstorage.client.utils.Network;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-
-import java.util.Objects;
 
 public class Main extends Application {
     
@@ -19,10 +18,10 @@ public class Main extends Application {
         Parent root = loader.load();
         primaryStage.setTitle("Cloud storage");
         Scene scene = new Scene(root, 1300, 480);
-//        root.getStylesheets().add("/stylesMain.css");
         primaryStage.setScene(scene);
         primaryStage.setResizable(false);
         primaryStage.setOnCloseRequest(e -> {
+            Network.closeSocket();
             Platform.exit();
             System.exit(0);
         });

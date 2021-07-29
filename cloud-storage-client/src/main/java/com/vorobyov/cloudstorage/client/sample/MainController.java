@@ -1,6 +1,7 @@
 package com.vorobyov.cloudstorage.client.sample;
 
 import com.vorobyov.cloudstorage.client.utils.FileProperties;
+import com.vorobyov.cloudstorage.client.utils.Network;
 import com.vorobyov.cloudstorage.client.utils.Static;
 import com.vorobyov.cloudstorage.client.utils.User;
 import javafx.collections.FXCollections;
@@ -11,26 +12,30 @@ import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class MainController {
+	Logger logger = Logger.getLogger("com.vorobyov.cloudstorage.client.sample.MainController");
+	private final DataInputStream in = Network.getDataInputStream();
+	private final DataOutputStream out = Network.getDataOutputStream();
+	private final ReadableByteChannel rbc = Network.getRbc();
+	private final ByteBuffer byteBuffer = Network.getByteBuffer();
+	private FileInputStream fileInputStream;
+	private FileOutputStream fileOutputStream;
 	
-	private final DataInputStream in = new DataInputStream(Network.getInputStream());
-	private final DataOutputStream out = new DataOutputStream(Network.getOutputStream());
-	private final ReadableByteChannel rbc = Channels.newChannel(in);
-	private final ByteBuffer byteBuffer = ByteBuffer.allocate(8 * 1024);
-	private ObjectInputStream ois;
-	private ObjectOutputStream oos;
 	User user = Static.getUser();
+	
+	private String selectedFileName;
 	
 	@FXML	MenuItem closeWindow;
 	@FXML	TableView<FileProperties> serverFIleList;
@@ -52,11 +57,11 @@ public class MainController {
 	@FXML	TableColumn<FileProperties, String> localTableName;
 	@FXML	TableColumn<FileProperties, String> localTableType;
 	@FXML	TableColumn<FileProperties, Long> localTableSize;
-	@FXML	TableColumn<FileProperties, Date> localTableLastModify;
+	@FXML	TableColumn<FileProperties, String> localTableLastModify;
 	@FXML	TextArea viewTextArea;
 	@FXML	TextField searchField;
 	
-	private void write(String s) {
+	private void writeCommand(String s) {
 		try {
 			out.write(s.getBytes(StandardCharsets.UTF_8));
 		} catch (IOException e) {
@@ -64,48 +69,16 @@ public class MainController {
 		}
 	}
 	
-	private void write(Object obj) {
-		try {
-			oos = new ObjectOutputStream(Network.getOutputStream());
-			
-			oos.writeObject(obj);
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				ois.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+	private void sendObject(Object obj) {
+
 	}
 	
-	public Object read() {
-		Object o = null;
-		try {
-			ois = new ObjectInputStream(Network.getInputStream());
-			
-			o = ois.readObject();
-		} catch (IOException | ClassNotFoundException e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				ois.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		/*
-		int readNumberBytes;
-		while ((readNumberBytes = rbc.read(byteBuffer)) != -1) {
-
-			String serverAnswer = new String(Arrays.copyOfRange(byteBuffer.array(), 0, readNumberBytes));
-			byteBuffer.clear();
-		}
-		*/
-		
-		return o;
+	private String read() throws IOException {
+		int readNumberBytes = rbc.read(byteBuffer);
+		String serverAnswer = new String(Arrays.copyOfRange(byteBuffer.array(), 0, readNumberBytes))
+			.replaceAll("\\n", "").replace("\r", "");
+		byteBuffer.clear();
+		return serverAnswer;
 	}
 	
 	@FXML
@@ -115,22 +88,45 @@ public class MainController {
 	
 	@FXML
 	private void upload() {
-	
+
 		String localPath = user.getCurrentLocalPath();
 		String serverPath = user.getCurrentServerPath();
-		//TODO
-		String filePath = "";
-		File file = new File(Paths.get(localPath, filePath).toString());
-		long fileSize = file.length();
-		
-		try {
-			String command = "upload " + Paths.get(serverPath, filePath) + fileSize;
-			out.write(command.getBytes(StandardCharsets.UTF_8));
-			if ("OK".equals(read())) {
-				oos.writeObject(file);
+		File file = new File(Paths.get(localPath, selectedFileName).toString());
+		if (file.isFile()) {
+			long fileSize = file.length();
+			try {
+				String command = "upload " + Paths.get(serverPath, selectedFileName) + " " + fileSize;
+				out.write(command.getBytes(StandardCharsets.UTF_8));
+				out.flush();
+				String answer = read();
+				logger.info("answer from server: " + answer);
+				while (true) {
+					if ("/upload accepted".equals(answer)) {
+						RandomAccessFile raf = new RandomAccessFile(file, "r");
+						
+						byte[] bytes = new byte[1024 * 8];
+						
+						int read;
+						while ((read = raf.read(bytes)) != -1) {
+							out.write(bytes, 0, read);
+						}
+						out.flush();
+						raf.close();
+						
+						answer = read();
+						if ("/upload complete".equals(answer)) {
+							logger.info("answer from server: " + answer);
+						} else if ("/upload failed".equals(answer)) {
+							logger.info("answer from server: " + answer);
+						}
+					} else if ("/file exists".equals(answer)) {
+						//TODO вызвать окно подтверждения
+						out.write("/rewrite".getBytes(StandardCharsets.UTF_8));
+					}
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -181,11 +177,6 @@ public class MainController {
 			String[] s = new File(currentPath.toString()).list();
 			if (s != null && s.length > 0) {
 				result = Files.list(currentPath)
-//					.sorted((p1, p2) -> {
-//						String name1 = p1.getFileName().toString();
-//						String name2 = p2.getFileName().toString();
-//						return name1.compareTo(name2);
-//					})
 					.map(p -> new FileProperties(p.getFileName().toString(),
 													getFileExtension(p),
 													new File(p.toString()).length(),
@@ -207,17 +198,10 @@ public class MainController {
 		
 		try {
 			localTableName.setCellValueFactory(new PropertyValueFactory<>("name"));
-//			localFIleList.getColumns().add(localTableName);
-			
 			localTableType.setCellValueFactory(new PropertyValueFactory<>("type"));
-//			localFIleList.getColumns().add(localTableType);
-			
 			localTableSize.setCellValueFactory(new PropertyValueFactory<>("size"));
-//			localFIleList.getColumns().add(localTableSize);
-			
-			localTableLastModify.setCellValueFactory(new PropertyValueFactory<>("date"));
-//			localFIleList.getColumns().add(localTableLastModify);
-			
+			localTableLastModify.setCellValueFactory(new PropertyValueFactory<>("lmDate"));
+
 			localFIleList.setItems(observableList);
 			
 		} catch (NullPointerException e) {
@@ -235,5 +219,11 @@ public class MainController {
 			return "";
 		}
 		return pathFile.substring(lastIndexOf);
+	}
+	
+	@FXML
+	private void setSelectedFileName() {
+		TableView.TableViewSelectionModel<FileProperties> selectionModel = localFIleList.getSelectionModel();
+		selectedFileName = selectionModel.getSelectedItem().getName();
 	}
 }

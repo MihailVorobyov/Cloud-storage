@@ -1,5 +1,6 @@
 package com.vorobyov.cloudstorage.client.sample;
 
+import com.vorobyov.cloudstorage.client.utils.Network;
 import com.vorobyov.cloudstorage.client.utils.Static;
 import com.vorobyov.cloudstorage.client.utils.User;
 import javafx.event.ActionEvent;
@@ -20,11 +21,10 @@ import java.util.Arrays;
 
 public class AuthController {
 	
-	static Socket socket;
-	static DataInputStream in;
-	static DataOutputStream out;
-	static ReadableByteChannel rbc;
-	static ByteBuffer byteBuffer;
+	private DataInputStream in;
+	private DataOutputStream out;
+	private ReadableByteChannel rbc;
+	private ByteBuffer byteBuffer;
 	
 	@FXML
 	public TextField loginField;
@@ -52,11 +52,10 @@ public class AuthController {
 				try {
 					Network.connect();
 					
-					socket = Network.getSocket();
-					out = new DataOutputStream(Network.getOutputStream());
-					in = new DataInputStream(Network.getInputStream());
-					rbc = Channels.newChannel(in);
-					byteBuffer = ByteBuffer.allocate(8 * 1024);
+					out = Network.getDataOutputStream();
+					in = Network.getDataInputStream();
+					rbc = Network.getRbc();
+					byteBuffer = Network.getByteBuffer();
 		
 					write("signup " + loginField.getText() + ":" + passwordField.getText());
 					
@@ -76,14 +75,9 @@ public class AuthController {
 				} catch (Exception e) {
 					e.printStackTrace();
 				}finally {
-					try {
-						rbc.close();
-						in.close();
-						out.close();
-						socket.close();
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
+					rbc = null;
+					in = null;
+					out = null;
 				}
 			} else {
 				message.setText("Password must consists of letters, numbers or symbols, without spaces.");
@@ -95,7 +89,47 @@ public class AuthController {
 		}
 	}
 	
+	//TODO удалить после отладки
 	public void signIn(ActionEvent actionEvent) {
+		loginField.setText("user1");
+		passwordField.setText("pass1");
+		
+		String result;
+		
+			try {
+				Network.connect();
+				
+				out = Network.getDataOutputStream();
+				in = Network.getDataInputStream();
+				rbc = Network.getRbc();
+				byteBuffer = Network.getByteBuffer();
+				
+				write("signIn " + loginField.getText() + ":" + passwordField.getText());
+				
+				result = read();
+				
+				if ("OK".equals(result.replace("\n", "").replace("\r", "").trim())) {
+					setUpUser(loginField.getText());
+					this.loginField.getScene().getWindow().hide();
+					Main main = new Main();
+					main.showWindow();
+				} else {
+					loginField.setEditable(true);
+					passwordField.setEditable(true);
+					message.setText(result);
+				}
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				rbc = null;
+				in = null;
+				out = null;
+			}
+	}
+	
+	//TODO переименовать в signIn после отладки
+	public void signIn0(ActionEvent actionEvent) {
 		loginField.setEditable(false);
 		passwordField.setEditable(false);
 		
@@ -105,11 +139,11 @@ public class AuthController {
 				
 				try {
 					Network.connect();
-					socket = Network.getSocket();
-					out = new DataOutputStream(Network.getOutputStream());
-					in = new DataInputStream(Network.getInputStream());
-					rbc = Channels.newChannel(in);
-					byteBuffer = ByteBuffer.allocate(8 * 1024);
+					
+					out = Network.getDataOutputStream();
+					in = Network.getDataInputStream();
+					rbc = Network.getRbc();
+					byteBuffer = Network.getByteBuffer();
 					
 					write("signIn " + loginField.getText() + ":" + passwordField.getText());
 					
@@ -129,14 +163,9 @@ public class AuthController {
 				} catch (Exception e) {
 					e.printStackTrace();
 				} finally {
-					try {
-						rbc.close();
-						in.close();
-						out.close();
-						socket.close();
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
+					rbc = null;
+					in = null;
+					out = null;
 				}
 			} else {
 				message.setText("Password must consists of letters, numbers or symbols, without spaces.");

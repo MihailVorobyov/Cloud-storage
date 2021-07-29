@@ -1,5 +1,6 @@
 package com.vorobyov.cloudstorage.client.utils;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class FileProperties {
@@ -7,12 +8,16 @@ public class FileProperties {
 	private String type;
 	private Long size;
 	private Date date;
+	SimpleDateFormat formatter;
+	String lmDate;
 	
 	public FileProperties(String name, String type, Long size, Date date) {
 		this.name = name;
 		this.type = type;
 		this.size = size;
 		this.date = date;
+		formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		lmDate = formatter.format(date);
 	}
 	
 	public void setName(String name) {
@@ -43,7 +48,7 @@ public class FileProperties {
 		return size;
 	}
 	
-	public Date getDate() {
-		return date;
+	public String getLmDate() {
+		return lmDate;
 	}
 }

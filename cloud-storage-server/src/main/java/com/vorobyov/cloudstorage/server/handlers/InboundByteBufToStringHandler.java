@@ -32,7 +32,6 @@ public class InboundByteBufToStringHandler extends ChannelInboundHandlerAdapter 
 	
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		System.out.println(this.getClass().getSimpleName() + ".channelRead");
 		
 		ByteBuf buf = (ByteBuf) msg;
 		

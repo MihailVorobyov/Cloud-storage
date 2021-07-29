@@ -19,6 +19,7 @@ public class User {
 	public User(String userName) {
 		this.userName = userName;
 		this.currentLocalPath = Paths.get(".").toAbsolutePath().getRoot().toString();
+		this.currentServerPath = userName;
 		this.sortBy = "name";
 	}
 	

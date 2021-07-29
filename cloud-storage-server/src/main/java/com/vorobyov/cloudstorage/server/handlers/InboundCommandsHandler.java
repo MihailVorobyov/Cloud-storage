@@ -29,18 +29,14 @@ public class InboundCommandsHandler extends SimpleChannelInboundHandler<String> 
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-		System.out.println("CommandsHandler.channelRead0");
-		
 		String command = msg
 				.replace("\r", "")
 				.replace("\n", "");
-		System.out.println(command);
-		
+		logger.info("Command from client: " + command);
 		if (command.startsWith("set_user_name ")) {
 			ctx.pipeline().remove(InboundAuthHandler.class);
-			ctx.write(setUpUser(command));
-//			setUpUser(command);
-			
+//			ctx.write(setUpUser(command));
+			setUpUser(command); //TODO для теста
 		} else if (command.startsWith("ls")) {
 			ctx.writeAndFlush(getFilesList("ls " + sortBy, currentPath));
 		} else if (command.startsWith("touch ")) {
@@ -86,12 +82,12 @@ public class InboundCommandsHandler extends SimpleChannelInboundHandler<String> 
 	 * @param command Строка вида "upload путь_к_файлу_на_сервере размер_файла"
 	 * @return возвращает содержимое текущей директории
 	 */
-	private String upload(String command, ChannelHandlerContext context) throws IOException {
+	private String upload(String command, ChannelHandlerContext ctx) throws IOException {
 		String[] s = command.split(" ", 3);
 		String filePath = Paths.get("server", s[1]).toString();
-		long fileSize = Long.parseLong(s[2]);
-		context.pipeline().addFirst(new InboundUploadFileHandler(filePath, fileSize));
-		
+		int fileSize = Integer.parseInt(s[2]);
+		ctx.pipeline().write("/upload accepted");
+		ctx.pipeline().addFirst(new InboundUploadFileHandler(filePath, fileSize));
 		return getFilesList("_ ".concat(sortBy), currentPath);
 	}
 	
