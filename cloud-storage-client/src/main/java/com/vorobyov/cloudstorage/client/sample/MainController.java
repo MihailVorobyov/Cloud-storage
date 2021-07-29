@@ -12,7 +12,10 @@ import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -69,8 +72,17 @@ public class MainController {
 		}
 	}
 	
-	private void sendObject(Object obj) {
-
+	private void sendFile(File file) {
+		try (RandomAccessFile raf = new RandomAccessFile(file, "r")){
+			byte[] bytes = new byte[1024 * 8];
+			int read;
+			while ((read = raf.read(bytes)) != -1) {
+				out.write(bytes, 0, read);
+			}
+			out.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	private String read() throws IOException {
@@ -100,28 +112,14 @@ public class MainController {
 				out.flush();
 				String answer = read();
 				logger.info("answer from server: " + answer);
-				while (true) {
-					if ("/upload accepted".equals(answer)) {
-						RandomAccessFile raf = new RandomAccessFile(file, "r");
-						
-						byte[] bytes = new byte[1024 * 8];
-						
-						int read;
-						while ((read = raf.read(bytes)) != -1) {
-							out.write(bytes, 0, read);
-						}
-						out.flush();
-						raf.close();
-						
-						answer = read();
-						if ("/upload complete".equals(answer)) {
-							logger.info("answer from server: " + answer);
-						} else if ("/upload failed".equals(answer)) {
-							logger.info("answer from server: " + answer);
-						}
-					} else if ("/file exists".equals(answer)) {
-						//TODO вызвать окно подтверждения
-						out.write("/rewrite".getBytes(StandardCharsets.UTF_8));
+				if ("/upload accepted".equals(answer)) {
+					sendFile(file);
+					
+					answer = read();
+					if (answer.startsWith("/upload complete")) {
+						logger.info("answer from server: " + answer);
+					} else if ("/upload failed".equals(answer)) {
+						logger.info("answer from server: " + answer);
 					}
 				}
 			} catch (IOException e) {

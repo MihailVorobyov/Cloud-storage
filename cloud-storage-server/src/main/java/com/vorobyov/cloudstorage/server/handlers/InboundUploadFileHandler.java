@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,26 +33,24 @@ public class InboundUploadFileHandler extends ChannelInboundHandlerAdapter {
 	
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		
+
 		ByteBuf byteBuf = (ByteBuf) msg;
-		ByteBuffer[] byteBuffers = byteBuf.nioBuffers();
 		
 		File file = new File(String.valueOf(fileToWrite));
 		if (file.exists()) {
-			ctx.pipeline().write("/file exists");
-			if ((String.valueOf(byteBuffers[0])).startsWith("/rewrite")) {
-				writeBytesToFile(byteBuf, byteBuffers, file, ctx);
-			}
-		} else {
-			Files.createFile(fileToWrite);
-			writeBytesToFile(byteBuf, byteBuffers, file, ctx);
+			Files.delete(fileToWrite);
 		}
+		Files.createFile(fileToWrite);
+		writeBytesToFile(byteBuf, file, ctx);
+		
+
 	}
 	
-	private void writeBytesToFile(ByteBuf byteBuf, ByteBuffer[] byteBuffers, File file, ChannelHandlerContext ctx) {
-		try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
-		     FileChannel fileChannel = randomAccessFile.getChannel()) {
-			fileChannel.truncate(0);
+	private void writeBytesToFile(ByteBuf byteBuf, File file, ChannelHandlerContext ctx) {
+		try (RandomAccessFile raf = new RandomAccessFile(file, "rw");
+		     FileChannel fileChannel = raf.getChannel()) {
+			ByteBuffer[] byteBuffers = byteBuf.nioBuffers();
+			
 			for (int i = 0; i < byteBuf.nioBufferCount(); i++) {
 				while (byteBuffers[i].hasRemaining()) {
 					fileChannel.position(file.length());
@@ -64,10 +63,11 @@ public class InboundUploadFileHandler extends ChannelInboundHandlerAdapter {
 				ctx.pipeline().write("/upload complete");
 				ctx.pipeline().addFirst(new InboundByteBufToStringHandler());
 				ctx.pipeline().remove(InboundUploadFileHandler.class);
-			} else {
-				logger.info("/upload failed");
-				ctx.pipeline().write("/upload failed");
 			}
+				//			} else {
+//				logger.info("/upload failed");
+//				ctx.pipeline().write("/upload failed");
+//			}
 			
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -58,6 +58,10 @@ public class Network {
 		return outputStream;
 	}
 	
+	public static Socket getSocket() {
+		return socket;
+	}
+	
 	public static void closeSocket() {
 		try {
 			inputStream.close();
