@@ -27,16 +27,18 @@ public class Server {
 					@Override
 					protected void initChannel(Channel channel) throws Exception {
 						channel.pipeline().addLast(
+							new OutboundHandler(),
 							new ByteBufToByteArrayHandler(),
-							new UploadFileHandler(),
+//							new UploadFileHandler(),
+//							new DownloadHandler(),
 							new ByteArrayToStringHandler(),
 							new AuthHandler(),
 							new CommandsHandler(),
-							
-							new OutboundHandler(),
-							new DownloadHandler(),
 							new StringToByteArrayHandler()
-						);
+
+							
+
+							);
 					}
 				});
 			ChannelFuture future = bootstrap.bind(5000).sync();

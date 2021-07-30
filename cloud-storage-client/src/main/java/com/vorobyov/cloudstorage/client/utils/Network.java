@@ -23,10 +23,10 @@ public class Network {
 			socket = new Socket(ADDRESS, PORT);
 			inputStream = socket.getInputStream();
 			outputStream = socket.getOutputStream();
-			rbc = Channels.newChannel(inputStream);
 			dataInputStream = new DataInputStream(inputStream);
 			dataOutputStream = new DataOutputStream(outputStream);
-			 byteBuffer = ByteBuffer.allocate(8 * 1024);
+			rbc = Channels.newChannel(inputStream);
+			byteBuffer = ByteBuffer.allocate(8 * 1024);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

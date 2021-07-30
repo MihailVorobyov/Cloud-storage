@@ -25,7 +25,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class MainController {
-	Logger logger = Logger.getLogger("com.vorobyov.cloudstorage.client.sample.MainController");
+	Logger logger = Logger.getLogger(this.getClass().getName());
 	private final DataInputStream in = Network.getDataInputStream();
 	private final DataOutputStream out = Network.getDataOutputStream();
 	private final ReadableByteChannel rbc = Network.getRbc();
@@ -38,7 +38,7 @@ public class MainController {
 	private String selectedFileName;
 	
 	@FXML	MenuItem closeWindow;
-	@FXML	TableView<FileProperties> serverFIleList;
+	@FXML	TableView<FileProperties> serverFileList;
 	@FXML	TableColumn<FileProperties, String> serverTableName;
 	@FXML	TableColumn<FileProperties, String> serverTableType;
 	@FXML	TableColumn<FileProperties, Long> serverTableSize;
@@ -189,7 +189,7 @@ public class MainController {
 	private void renewLocalTable(List<FileProperties> fpList) {
 	
 		ObservableList<FileProperties> observableList = FXCollections.observableArrayList();
-		fpList.stream().forEach(fp -> observableList.add(fp));
+		observableList.addAll(fpList);
 		
 		try {
 			localTableName.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -198,6 +198,24 @@ public class MainController {
 			localTableLastModify.setCellValueFactory(new PropertyValueFactory<>("lmDate"));
 
 			localFIleList.setItems(observableList);
+			
+		} catch (NullPointerException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void renewServerTable(List<FileProperties> fpList) {
+		
+		ObservableList<FileProperties> observableList = FXCollections.observableArrayList();
+		observableList.addAll(fpList);
+		
+		try {
+			serverTableName.setCellValueFactory(new PropertyValueFactory<>("name"));
+			serverTableType.setCellValueFactory(new PropertyValueFactory<>("type"));
+			serverTableSize.setCellValueFactory(new PropertyValueFactory<>("size"));
+			serverTableLastModify.setCellValueFactory(new PropertyValueFactory<>("lmDate"));
+			
+			serverFileList.setItems(observableList);
 			
 		} catch (NullPointerException e) {
 			e.printStackTrace();
@@ -230,9 +248,8 @@ public class MainController {
 	 * Метод преобразует список файлов, полученный от сервера,
 	 * из String в List<FileProperties>. Разделителем между файлами
 	 * служит последовательность "<>", а между свойствами файла - ";;"
-	 * @return
 	 */
-	private List<FileProperties> getServerFileList() {
+	private void getServerFileList() {
 		List<FileProperties> result= new ArrayList<>();
 		try {
 			String fileList = read();
@@ -242,10 +259,9 @@ public class MainController {
 					return new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3])));
 				})
 				.collect(Collectors.toList());
-			return result;
+			renewServerTable(result);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return result;
 	}
 }

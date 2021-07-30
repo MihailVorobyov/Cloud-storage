@@ -38,7 +38,7 @@ public class DownloadHandler implements ChannelOutboundHandler {
 	
 	@Override
 	public void read(ChannelHandlerContext channelHandlerContext) throws Exception {
-	
+		logger.info("Starting read channel...");
 	}
 	
 	@Override

@@ -50,7 +50,9 @@ public class UploadFileHandler implements ChannelInboundHandler {
 	
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-
+		logger.info("Starting read channel...");
+		
+		//TODO (Message)
 		ByteBuf byteBuf = (ByteBuf) msg;
 		
 		File file = new File(String.valueOf(fileToWrite));

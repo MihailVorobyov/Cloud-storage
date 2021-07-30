@@ -33,35 +33,35 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 				.replace("\n", "");
 		logger.info("Command from client: " + command);
 		if (command.startsWith("set_user_name ")) {
-			ctx.writeAndFlush(setUpUser(command));
+			ctx.fireChannelRead(setUpUser(command));
 		} else if (command.startsWith("ls")) {
-			ctx.writeAndFlush(getFilesList());
+			ctx.fireChannelRead(getFilesList());
 		} else if (command.startsWith("touch ")) {
-			ctx.writeAndFlush(createFile(command)); //TODO убрать currentPath - будет передаваться от клиента
+			ctx.fireChannelRead(createFile(command)); //TODO убрать currentPath - будет передаваться от клиента
 		} else if (command.startsWith("mkdir ")) {
-			ctx.writeAndFlush(makeDirectory(command));
+			ctx.fireChannelRead(makeDirectory(command));
 		} else if (command.startsWith("cd ")) {
-			ctx.writeAndFlush(changeDirectory(command));
+			ctx.fireChannelRead(changeDirectory(command));
 		} else if (command.startsWith("rm ")) {
-			ctx.writeAndFlush(remove(command, currentPath));
+			ctx.fireChannelRead(remove(command, currentPath));
 		} else if (command.startsWith("copy ")) {
-			ctx.writeAndFlush(copy(command));
+			ctx.fireChannelRead(copy(command));
 		} else if (command.startsWith("cat ")) {
-			ctx.writeAndFlush(viewFile(command));
+			ctx.fireChannelRead(viewFile(command));
 		} else if (command.startsWith("rename ")) {
-			ctx.writeAndFlush(rename(command));
+			ctx.fireChannelRead(rename(command));
 		} else if (command.startsWith("move ")) {
-			ctx.writeAndFlush(move(command));
+			ctx.fireChannelRead(move(command));
 //		} else if (command.startsWith("download ")) {
-//			ctx.writeAndFlush(download(command));
+//			ctx.fireChannelRead(download(command));
 		} else if (command.startsWith("upload ")) {
-			ctx.writeAndFlush(upload(command, ctx));
+			ctx.fireChannelRead(upload(command, ctx));
 		} else if (command.startsWith("search ")) {
-			ctx.writeAndFlush(search(command.replaceFirst("search ", "")));
+			ctx.fireChannelRead(search(command.replaceFirst("search ", "")));
 		} else if (command.startsWith("disconnect ")) {
 			disconnect();
 		} else {
-			ctx.write(command);
+			ctx.fireChannelRead(command);
 		}
 	}
 	
@@ -74,7 +74,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	 * @param command Строка вида "upload путь_к_файлу_на_сервере размер_файла"
 	 * @return возвращает содержимое текущей директории
 	 */
-	private List<FileProperties> upload(String command, ChannelHandlerContext ctx) {
+	private String upload(String command, ChannelHandlerContext ctx) {
 		String[] s = command.split(" ", 3);
 		Path filePath = Paths.get("server", s[1]); //TODO перенести в UploadHandler
 		long fileSize = Long.parseLong(s[2]);
@@ -82,7 +82,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		ctx.pipeline().get(UploadFileHandler.class).setFileToWrite(filePath);
 		ctx.pipeline().get(UploadFileHandler.class).setFileSize(fileSize);
 		
-		ctx.pipeline().write("/upload accepted");
+		ctx.fireChannelRead("/upload accepted");
 		return getFilesList();
 	}
 	
@@ -123,7 +123,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return result;
 	}
 	
-	private List<FileProperties> move(String command) throws IOException {
+	private String move(String command) throws IOException {
 		String[] s = command.trim().split(" ", 3);
 
 		String sourcePath = s[1];
@@ -174,7 +174,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		}
 	}
 	
-	private List<FileProperties> rename(String command) throws IOException {
+	private String rename(String command) throws IOException {
 		String[] s = command.trim().split(" ", 3);
 
 		String oldName = s[1];
@@ -184,7 +184,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return getFilesList();
 	}
 	
-	private List<FileProperties> setUpUser(String command) {
+	private String setUpUser(String command) {
 		String[] s = command.split(" ", 2);
 		userName = s[1];
 		currentPath = Paths.get("server", userName).toString(); //TODO currentPath ????
@@ -204,7 +204,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 					getFileExtension(p),
 					new File(p.toString()).length(),
 					new Date(new File(p.toString()).lastModified())))
-				.map(fileProperties -> fileProperties.toString())
+				.map(FileProperties::toString)
 				.collect(Collectors.joining("<>"));
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -234,7 +234,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	}
 	
 	// копирование файлов / директории
-	private List<FileProperties> copy(String command) {
+	private String copy(String command) {
 		String[] arguments = command.split(" ", 3);
 		
 		try {
@@ -282,7 +282,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	}
 	
 	// Удаление файла / директории
-	private List<FileProperties> remove(String command, String currentPath) throws IOException {
+	private String remove(String command, String currentPath) throws IOException {
 		Path target;
 		
 		String[] arguments = command.split(" ", 2);
@@ -320,7 +320,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	}
 	
 	// изменение текущей директории
-	private List<FileProperties> changeDirectory(String command) {
+	private String changeDirectory(String command) {
 		String[] arguments = command.split(" ", 2);
 		String path = arguments[1].trim();
 		
@@ -343,7 +343,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	}
 	
 	// создание файла относительно текущей директории
-	private List<FileProperties> createFile(String command) {
+	private String createFile(String command) {
 		String[] arguments = command.split(" ", 2);
 		Path path = Paths.get(currentPath, arguments[1]);
 		try {
@@ -367,7 +367,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	 * @param command строка вида "mkdir currentPath/имя_директории"
 	 * @return List<FileProperties>
 	 */
-	private List<FileProperties> makeDirectory(String command) {
+	private String makeDirectory(String command) {
 		String[] arguments = command.split(" ", 2);
 
 		String pathArg = arguments[1].trim();

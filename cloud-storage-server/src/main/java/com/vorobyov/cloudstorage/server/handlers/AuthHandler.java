@@ -6,6 +6,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.logging.Logger;
@@ -19,6 +20,7 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
+		logger.info(msg);
 		
 		if (msg.startsWith("signIn ")) {
 			signIn(ctx, msg);
@@ -48,7 +50,7 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 		
 		if (UserRegistration.authData.containsKey(userName)) {
 			logger.info("User " + userName + " already exists.");
-			ctx.write("User already exists");
+			ctx.write("User already exists".getBytes(StandardCharsets.UTF_8));
 		} else {
 			UserRegistration.authData.put(userName, password);
 			
@@ -80,10 +82,10 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 		if (UserRegistration.authData.containsKey(userName) && password.equals(UserRegistration.authData.get(userName))) {
 			if (UserRegistration.usersOnline.contains(userName)) {
 				logger.info("User " + userName + " try to sign in, but already signed in.");
-				ctx.write("User already signed in", ctx.newPromise());
+				ctx.write("User already signed in".getBytes(StandardCharsets.UTF_8), ctx.newPromise());
 			} else {
 				UserRegistration.usersOnline.add(userName);
-				ctx.write("signIn successful", ctx.newPromise());
+				ctx.write("signIn successful".getBytes(StandardCharsets.UTF_8), ctx.newPromise());
 				ctx.pipeline().remove(AuthHandler.class); //TODO возможны проблемы
 				ctx.fireChannelRead("set_user_name " + userName);
 			}

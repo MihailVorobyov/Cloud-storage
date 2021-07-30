@@ -1,5 +1,6 @@
 package com.vorobyov.cloudstorage.server.handlers;
 
+import com.vorobyov.cloudstorage.server.utils.Message;
 import com.vorobyov.cloudstorage.server.utils.UserRegistration;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -11,10 +12,16 @@ public class ByteBufToByteArrayHandler extends ChannelInboundHandlerAdapter {
 	
 	private String expectFromChannel = "COMMAND";
 	
+	/**
+	 * Для перенаправления входящих байтов в CommandsHandler
+	 */
 	public void expectCommand() {
 		expectFromChannel = "COMMAND";
 	}
 	
+	/**
+	 * Для перенаправления входящих байтов в UploadHandler
+	 */
 	public void expectData() {
 		expectFromChannel = "DATA";
 	}
@@ -37,7 +44,7 @@ public class ByteBufToByteArrayHandler extends ChannelInboundHandlerAdapter {
 	
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		
+		logger.info("Starting read channel...");
 		ByteBuf buf = (ByteBuf) msg;
 		
 		byte[] b = new byte[buf.readableBytes()];
@@ -47,9 +54,9 @@ public class ByteBufToByteArrayHandler extends ChannelInboundHandlerAdapter {
 		buf.release();
 		
 		if ("COMMAND".equals(expectFromChannel)) {
-			ctx.pipeline().get(ByteArrayToStringHandler.class).channelRead(ctx, b);
+			ctx.pipeline().get(ByteArrayToStringHandler.class).channelRead0(ctx, new Message(b));
 		} else if ("DATA".equals(expectFromChannel)) {
-			ctx.fireChannelRead(b);
+			ctx.fireChannelRead(new Message(b));
 		}
 	}
 }

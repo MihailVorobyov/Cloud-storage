@@ -1,5 +1,6 @@
 package com.vorobyov.cloudstorage.server.handlers;
 
+import com.vorobyov.cloudstorage.server.utils.UserRegistration;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -20,9 +21,12 @@ public class OutboundHandler extends ChannelOutboundHandlerAdapter {
 	
 	@Override
 	public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+		logger.info("Starting write to channel...");
+		
 		byte[] bytes = (byte[]) msg;
-		logger.info("output message: " + bytes);
-		ByteBuf buf = Unpooled.buffer().writeBytes(bytes);
+		logger.info("output message: " + new String(bytes, StandardCharsets.UTF_8));
+		ByteBuf buf = Unpooled.directBuffer();
+		buf.writeBytes(bytes);
 		ctx.writeAndFlush(buf);
 	}
 }
