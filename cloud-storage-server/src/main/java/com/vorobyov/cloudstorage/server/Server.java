@@ -12,7 +12,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import java.util.logging.Logger;
 
 public class Server {
-	Logger logger = Logger.getLogger("server.Server");
+	Logger logger = Logger.getLogger(this.getClass().getName());
 	
 	public Server() {
 		EventLoopGroup auth = new NioEventLoopGroup(1);
@@ -27,10 +27,15 @@ public class Server {
 					@Override
 					protected void initChannel(Channel channel) throws Exception {
 						channel.pipeline().addLast(
-							new InboundByteBufToStringHandler(),
-							new InboundAuthHandler(),
-							new InboundCommandsHandler(),
-							new OutboundHandler()
+							new ByteBufToByteArrayHandler(),
+							new UploadFileHandler(),
+							new ByteArrayToStringHandler(),
+							new AuthHandler(),
+							new CommandsHandler(),
+							
+							new OutboundHandler(),
+							new DownloadHandler(),
+							new StringToByteArrayHandler()
 						);
 					}
 				});

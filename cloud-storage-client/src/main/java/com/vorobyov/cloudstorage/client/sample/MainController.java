@@ -12,10 +12,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -223,5 +220,32 @@ public class MainController {
 	private void setSelectedFileName() {
 		TableView.TableViewSelectionModel<FileProperties> selectionModel = localFIleList.getSelectionModel();
 		selectedFileName = selectionModel.getSelectedItem().getName();
+	}
+	
+	public MainController() {
+		getServerFileList();
+	}
+	
+	/**
+	 * Метод преобразует список файлов, полученный от сервера,
+	 * из String в List<FileProperties>. Разделителем между файлами
+	 * служит последовательность "<>", а между свойствами файла - ";;"
+	 * @return
+	 */
+	private List<FileProperties> getServerFileList() {
+		List<FileProperties> result= new ArrayList<>();
+		try {
+			String fileList = read();
+			result = Arrays.stream(fileList.split("<>"))
+				.map(e -> {
+					String[] s = e.split(";;");
+					return new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3])));
+				})
+				.collect(Collectors.toList());
+			return result;
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return result;
 	}
 }

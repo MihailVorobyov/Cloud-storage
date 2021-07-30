@@ -1,4 +1,4 @@
-package com.vorobyov.cloudstorage.client.utils;
+package com.vorobyov.cloudstorage.server.utils;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;

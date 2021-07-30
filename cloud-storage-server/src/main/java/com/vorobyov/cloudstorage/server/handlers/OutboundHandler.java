@@ -16,14 +16,13 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 public class OutboundHandler extends ChannelOutboundHandlerAdapter {
-	Logger logger = Logger.getLogger("com.vorobyov.cloudstorage.server.handlers.OutboundHandler");
+	Logger logger = Logger.getLogger(this.getClass().getName());
 	
 	@Override
 	public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
-		String message = String.valueOf(msg);
-		logger.info("output message: " + message);
-		ByteBuf buf = Unpooled.buffer().writeBytes(message.concat("\n\r").getBytes(StandardCharsets.UTF_8));
-
+		byte[] bytes = (byte[]) msg;
+		logger.info("output message: " + bytes);
+		ByteBuf buf = Unpooled.buffer().writeBytes(bytes);
 		ctx.writeAndFlush(buf);
 	}
 }

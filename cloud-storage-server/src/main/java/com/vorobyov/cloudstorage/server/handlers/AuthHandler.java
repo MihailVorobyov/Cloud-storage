@@ -14,7 +14,7 @@ import java.util.logging.Logger;
  * @version 1.00 2021-07-09
  * Отвечает за регистрацию нового пользователя и аутентификацию при входе.
  */
-public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
+public class AuthHandler extends SimpleChannelInboundHandler<String> {
 	Logger logger = Logger.getLogger("server.handlers.InboundAuthHandler");
 	
 	@Override
@@ -48,7 +48,7 @@ public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
 		
 		if (UserRegistration.authData.containsKey(userName)) {
 			logger.info("User " + userName + " already exists.");
-			ctx.writeAndFlush("User already exists");
+			ctx.write("User already exists");
 		} else {
 			UserRegistration.authData.put(userName, password);
 			
@@ -68,33 +68,28 @@ public class InboundAuthHandler extends SimpleChannelInboundHandler<String> {
 	 */
 	private void signIn(ChannelHandlerContext ctx, String msg) {
 		
-		String userName;
-		String password;
-		
 		String[] s = msg.replaceFirst("signIn ", "")
 			.replaceAll("\n", "")
 			.replaceAll("\r", "")
 			.trim().split(":", 2);
-		userName = s[0];
-		password = s[1];
+		String userName = s[0];
+		String password = s[1];
 		
 		UserRegistration.addressUser.put(ctx.channel().remoteAddress(), userName);
 		
 		if (UserRegistration.authData.containsKey(userName) && password.equals(UserRegistration.authData.get(userName))) {
 			if (UserRegistration.usersOnline.contains(userName)) {
 				logger.info("User " + userName + " try to sign in, but already signed in.");
-//				ctx.pipeline().get(OutboundHandler.class).write(ctx, "User already signed in", ctx.newPromise());
-				UserRegistration.usersOnline.add(userName);
-				ctx.fireChannelRead("User already signed in");
-				
+				ctx.write("User already signed in", ctx.newPromise());
 			} else {
 				UserRegistration.usersOnline.add(userName);
-				ctx.pipeline().get(OutboundHandler.class).write(ctx, "OK", ctx.newPromise());
+				ctx.write("signIn successful", ctx.newPromise());
+				ctx.pipeline().remove(AuthHandler.class); //TODO возможны проблемы
 				ctx.fireChannelRead("set_user_name " + userName);
 			}
 		} else {
 			logger.info("Wrong name or password: name = " + userName + ", password = " + password + ".");
-			ctx.writeAndFlush("Wrong name or password");
+			ctx.write("wrong name or password");
 		}
 	}
 }

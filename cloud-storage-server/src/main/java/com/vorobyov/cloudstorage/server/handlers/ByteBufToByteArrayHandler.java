@@ -4,13 +4,21 @@ import com.vorobyov.cloudstorage.server.utils.UserRegistration;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-
-import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 
-public class InboundByteBufToStringHandler extends ChannelInboundHandlerAdapter {
+public class ByteBufToByteArrayHandler extends ChannelInboundHandlerAdapter {
+	Logger logger = Logger.getLogger(this.getClass().getName());
 	
-	Logger logger = Logger.getLogger("server.handlers.InboundByteBufToStringHandler");
+	private String expectFromChannel = "COMMAND";
+	
+	public void expectCommand() {
+		expectFromChannel = "COMMAND";
+	}
+	
+	public void expectData() {
+		expectFromChannel = "DATA";
+	}
+	
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
 		logger.info("Client " + ctx.channel().remoteAddress() + " connected.");
@@ -18,7 +26,6 @@ public class InboundByteBufToStringHandler extends ChannelInboundHandlerAdapter 
 		//TODO удалить после проверки
 		UserRegistration.authData.put("user1", "pass1");
 		UserRegistration.authData.put("user2", "pass2");
-		
 	}
 	
 	@Override
@@ -26,8 +33,6 @@ public class InboundByteBufToStringHandler extends ChannelInboundHandlerAdapter 
 		logger.info("Client " + ctx.channel().remoteAddress() + " disconnected.");
 		UserRegistration.usersOnline.remove(UserRegistration.addressUser.get(ctx.channel().remoteAddress()));
 		UserRegistration.addressUser.remove(ctx.channel().remoteAddress());
-		ctx.fireChannelRead("disconnect " + ctx.channel().remoteAddress());
-		ctx.pipeline().addBefore("CommandsHandler","AuthHandler", new InboundAuthHandler());
 	}
 	
 	@Override
@@ -40,6 +45,11 @@ public class InboundByteBufToStringHandler extends ChannelInboundHandlerAdapter 
 			buf.readBytes(b);
 		}
 		buf.release();
-		ctx.fireChannelRead(new String(b, StandardCharsets.UTF_8));
+		
+		if ("COMMAND".equals(expectFromChannel)) {
+			ctx.pipeline().get(ByteArrayToStringHandler.class).channelRead(ctx, b);
+		} else if ("DATA".equals(expectFromChannel)) {
+			ctx.fireChannelRead(b);
+		}
 	}
 }

@@ -12,9 +12,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 
 import java.io.*;
-import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -42,8 +40,6 @@ public class AuthController {
 	public Label message;
 	
 	public void signUp(ActionEvent actionEvent) {
-		loginField.setEditable(false);
-		passwordField.setEditable(false);
 		
 		if (loginField.getText().matches("\\w+")) {
 			if (passwordField.getText().matches("^[.\\S]+")) {
@@ -53,23 +49,25 @@ public class AuthController {
 					Network.connect();
 					
 					out = Network.getDataOutputStream();
-					in = Network.getDataInputStream();
+					in = Network.getDataInputStream(); //TODO убрать?
 					rbc = Network.getRbc();
-					byteBuffer = Network.getByteBuffer();
+					byteBuffer = Network.getByteBuffer(); //TODO убрать?
 		
 					write("signup " + loginField.getText() + ":" + passwordField.getText());
 					
-					result = read();
-					
-					if ("OK".equals(result.replace("\n", "").replace("\r", "").trim())) {
+					result = read().replace("\n", "").replace("\r", "").trim();
+					// Если пользователь уже зарегистрирован
+					if ("User already exists".equals(result)) {
+						//TODO
+					} else if ("wrong name or password".equals(result)) {
+						//TODO
+					}else if ("signIn successful".equals(result)) {
 						setUpUser(loginField.getText());
 						this.loginField.getScene().getWindow().hide();
 						Main main = new Main();
 						main.showWindow();
 					} else {
 						message.setText(result);
-						loginField.setEditable(true);
-						passwordField.setEditable(true);
 					}
 				
 				} catch (Exception e) {
