@@ -168,6 +168,7 @@ public class MainController {
 					} else if ("/upload failed".equals(answer)) {
 						logger.info("answer from server: " + answer);
 					}
+					getServerFileList();
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -223,6 +224,7 @@ public class MainController {
 	private void getServerFileList() {
 		List<FileProperties> result;
 		try {
+			writeCommand("ls");
 			String fileList = read();
 			result = Arrays.stream(fileList.split("<>"))
 				.map(s -> s.split(";;"))
@@ -266,7 +268,8 @@ public class MainController {
 	}
 	
 	private void setSelectedFileName(TableView<FileProperties> tv) {
-		TableView.TableViewSelectionModel<FileProperties> selectionModel = tv.getSelectionModel();
-		selectedFileName = selectionModel.getSelectedItem().getName();
+		if (tv.getSelectionModel().getSelectedItem() != null) {
+			selectedFileName = tv.getSelectionModel().getSelectedItem().getName();
+		}
 	}
 }

@@ -52,7 +52,7 @@
          <Font size="14.0"/>
       </font>
    </PasswordField>
-   <Label fx:id="message"
+   <Label fx:id="byteArray"
           layoutX="8.0"
           layoutY="247.0"
           prefHeight="46.0"

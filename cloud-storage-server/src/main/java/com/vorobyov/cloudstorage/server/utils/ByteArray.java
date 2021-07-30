@@ -1,9 +1,9 @@
 package com.vorobyov.cloudstorage.server.utils;
 
-public class Message {
+public class ByteArray {
 	private byte[] data;
 	
-	public Message(byte[] data) {
+	public ByteArray(byte[] data) {
 		this.data = data;
 	}
 	

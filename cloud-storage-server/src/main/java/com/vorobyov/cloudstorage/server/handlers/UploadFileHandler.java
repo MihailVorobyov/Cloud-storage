@@ -1,68 +1,76 @@
 package com.vorobyov.cloudstorage.server.handlers;
 
-import io.netty.buffer.ByteBuf;
+import com.vorobyov.cloudstorage.server.utils.ByteArray;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.SimpleChannelInboundHandler;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
-public class UploadFileHandler extends SimpleChannelInboundHandler {
+public class UploadFileHandler extends SimpleChannelInboundHandler<ByteArray> {
 	Logger logger = Logger.getLogger(this.getClass().getName());
 	
 	private Path fileToWrite;
 	private long fileSize;
+	private long bytesRead;
 	
 	@Override
-	protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
+	protected void channelRead0(ChannelHandlerContext ctx, ByteArray msg) throws Exception {
 		logger.info("Starting read channel...");
 		
-		//TODO (Message)
-		ByteBuf byteBuf = (ByteBuf) msg;
-		
-		File file = new File(String.valueOf(fileToWrite));
-		if (file.exists()) {
+		if (Files.exists(fileToWrite)) {
 			Files.delete(fileToWrite);
 		}
 		Files.createFile(fileToWrite);
-		writeBytesToFile(byteBuf, file, ctx);
+		writeBytesToFile(msg, ctx);
 	}
 	
-	private void writeBytesToFile(ByteBuf byteBuf, File file, ChannelHandlerContext ctx) {
-		try (RandomAccessFile raf = new RandomAccessFile(file, "rw");
+	private void writeBytesToFile(ByteArray msg, ChannelHandlerContext ctx) {
+		try (RandomAccessFile raf = new RandomAccessFile(fileToWrite.toString(), "rw");
 		     FileChannel fileChannel = raf.getChannel()) {
-			ByteBuffer[] byteBuffers = byteBuf.nioBuffers();
 			
-			for (int i = 0; i < byteBuf.nioBufferCount(); i++) {
-				while (byteBuffers[i].hasRemaining()) {
-					fileChannel.position(file.length());
-					fileChannel.write(byteBuffers[i]);
-				}
-			}
+//			ByteBuffer[] byteBuffers = byteBuf.nioBuffers();
+			ByteBuffer byteBuffer = ByteBuffer.wrap(msg.getData());
+
+//			for (int i = 0; i < byteBuf.nioBufferCount(); i++) {
+//				while (byteBuffers[i].hasRemaining()) {
+//					fileChannel.position(file.length());
+//					fileChannel.write(byteBuffers[i]);
+//				}
+//			}
 			
-			if (fileSize == Files.size(fileToWrite)) {
+			bytesRead += fileChannel.write(byteBuffer, bytesRead);
+			
+			logger.info("read " + bytesRead + " bytes");
+			logger.info("File size " + Files.size(fileToWrite) + " bytes");
+			
+			if (fileSize == bytesRead) {
 				logger.info("/upload complete");
-				ctx.pipeline().write("/upload complete");
-				ctx.pipeline().addFirst(new ByteArrayToStringHandler());
-				ctx.pipeline().remove(UploadFileHandler.class);
+				fileSize = 0;
+				fileToWrite = null;
+				bytesRead = 0;
+				ctx.pipeline().get(ByteBufToByteArrayHandler.class).expectCommand();
+//				ctx.pipeline().lastContext().fireChannelRead("/upload complete".getBytes(StandardCharsets.UTF_8));
+				ctx.fireChannelRead(new ByteArray("/upload complete".getBytes(StandardCharsets.UTF_8)));
+
 			}
 				//			} else {
 //				logger.info("/upload failed");
 //				ctx.pipeline().write("/upload failed");
 //			}
-			
+		
 		} catch (IOException e) {
 			e.printStackTrace();
-		} finally {
-			byteBuf.release();
 		}
+//		} finally {
+//			byteBuf.release();
+//		}
 	}
 	
 	public void setFileToWrite(Path fileToWrite) {

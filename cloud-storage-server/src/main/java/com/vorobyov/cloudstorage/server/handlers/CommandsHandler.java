@@ -33,7 +33,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 				.replace("\n", "");
 		logger.info("Command from client: " + command);
 		if (command.startsWith("set_user_name ")) {
-			ctx.fireChannelRead(setUpUser(command));
+			setUpUser(command);
 		} else if (command.startsWith("ls")) {
 			ctx.fireChannelRead(getFilesList());
 		} else if (command.startsWith("touch ")) {
@@ -81,9 +81,9 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		
 		ctx.pipeline().get(UploadFileHandler.class).setFileToWrite(filePath);
 		ctx.pipeline().get(UploadFileHandler.class).setFileSize(fileSize);
+		ctx.pipeline().get(ByteBufToByteArrayHandler.class).expectData();
 		
-		ctx.fireChannelRead("/upload accepted");
-		return getFilesList();
+		return "/upload accepted";
 	}
 	
 	/**
@@ -184,11 +184,10 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return getFilesList();
 	}
 	
-	private String setUpUser(String command) {
+	private void setUpUser(String command) {
 		String[] s = command.split(" ", 2);
 		userName = s[1];
 		currentPath = Paths.get("server", userName).toString(); //TODO currentPath ????
-		return getFilesList();
 	}
 	
 	/**

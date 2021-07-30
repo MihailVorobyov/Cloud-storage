@@ -29,9 +29,9 @@ public class Server {
 						channel.pipeline().addLast(
 							new OutboundHandler(),
 							new ByteBufToByteArrayHandler(),
+							new UploadFileHandler(),
 //							new DownloadHandler(),
 							new ByteArrayToStringHandler(),
-							new UploadFileHandler(),
 							new AuthHandler(),
 							new CommandsHandler(),
 							new StringToByteArrayHandler()
