@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 
 public class MainController {
 	Logger logger = Logger.getLogger(this.getClass().getName());
-	private final DataInputStream in = Network.getDataInputStream();
 	private final DataOutputStream out = Network.getDataOutputStream();
 	private final ReadableByteChannel rbc = Network.getRbc();
 	private final ByteBuffer byteBuffer = Network.getByteBuffer();
@@ -61,12 +60,63 @@ public class MainController {
 	@FXML	TextArea viewTextArea;
 	@FXML	TextField searchField;
 	
+	@FXML
+	private void setServerSelectedFileName() {
+		setSelectedFileName(serverFileList);
+	}
+	
+	@FXML
+	private void setClientSelectedFileName() {
+		setSelectedFileName(localFileList);
+	}
+	
+	@FXML
+	private void initialize() {
+		getLocalFilesList();
+		getServerFileList();
+	}
+	
 	private void writeCommand(String s) {
 		try {
 			out.write(s.getBytes(StandardCharsets.UTF_8));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	@FXML
+	private void copy() {
+	
+	}
+	
+	@FXML
+	private void paste() {
+	
+	}
+	
+	@FXML
+	private void cut() {
+	
+	}
+	
+	@FXML
+	private void delete() {
+	
+	}
+	
+	@FXML
+	private void makeDir() {
+	
+	}
+	
+	@FXML
+	private void rename() {
+	
+	}
+	
+	@FXML
+	private void search() {
+	
 	}
 	
 	private void sendFile(File file) {
@@ -125,41 +175,6 @@ public class MainController {
 		}
 	}
 	
-	@FXML
-	private void copy() {
-	
-	}
-	
-	@FXML
-	private void paste() {
-	
-	}
-	
-	@FXML
-	private void cut() {
-	
-	}
-	
-	@FXML
-	private void delete() {
-	
-	}
-	
-	@FXML
-	private void makeDir() {
-	
-	}
-	
-	@FXML
-	private void rename() {
-	
-	}
-	
-	@FXML
-	private void search() {
-	
-	}
-	
 	private void getLocalFilesList() {
 		Path currentPath = Paths.get(user.getCurrentLocalPath());
 		List<FileProperties> result = new ArrayList<>();
@@ -209,7 +224,6 @@ public class MainController {
 		List<FileProperties> result;
 		try {
 			String fileList = read();
-			logger.info(fileList);
 			result = Arrays.stream(fileList.split("<>"))
 				.map(s -> s.split(";;"))
 				.map(s -> new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3]))))
@@ -251,16 +265,8 @@ public class MainController {
 		return pathFile.substring(lastIndexOf);
 	}
 	
-	@FXML
-	private void setSelectedFileName() {
-		TableView.TableViewSelectionModel<FileProperties> selectionModel = localFileList.getSelectionModel();
+	private void setSelectedFileName(TableView<FileProperties> tv) {
+		TableView.TableViewSelectionModel<FileProperties> selectionModel = tv.getSelectionModel();
 		selectedFileName = selectionModel.getSelectedItem().getName();
 	}
-	
-	@FXML
-	private void initialize() {
-		getLocalFilesList();
-		getServerFileList();
-	}
-	
 }

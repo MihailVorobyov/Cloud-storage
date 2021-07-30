@@ -3,6 +3,7 @@ package com.vorobyov.cloudstorage.server.handlers;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.SimpleChannelInboundHandler;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,43 +14,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
-public class UploadFileHandler implements ChannelInboundHandler {
+public class UploadFileHandler extends SimpleChannelInboundHandler {
 	Logger logger = Logger.getLogger(this.getClass().getName());
 	
 	private Path fileToWrite;
 	private long fileSize;
 	
 	@Override
-	public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-	}
-	
-	@Override
-	public void handlerRemoved(ChannelHandlerContext channelHandlerContext) throws Exception {
-	
-	}
-	
-	@Override
-	public void channelRegistered(ChannelHandlerContext channelHandlerContext) throws Exception {
-	
-	}
-	
-	@Override
-	public void channelUnregistered(ChannelHandlerContext channelHandlerContext) throws Exception {
-	
-	}
-	
-	@Override
-	public void channelActive(ChannelHandlerContext channelHandlerContext) throws Exception {
-	
-	}
-	
-	@Override
-	public void channelInactive(ChannelHandlerContext channelHandlerContext) throws Exception {
-	
-	}
-	
-	@Override
-	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+	protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
 		logger.info("Starting read channel...");
 		
 		//TODO (Message)
@@ -61,26 +33,6 @@ public class UploadFileHandler implements ChannelInboundHandler {
 		}
 		Files.createFile(fileToWrite);
 		writeBytesToFile(byteBuf, file, ctx);
-	}
-	
-	@Override
-	public void channelReadComplete(ChannelHandlerContext channelHandlerContext) throws Exception {
-	
-	}
-	
-	@Override
-	public void userEventTriggered(ChannelHandlerContext channelHandlerContext, Object o) throws Exception {
-	
-	}
-	
-	@Override
-	public void channelWritabilityChanged(ChannelHandlerContext channelHandlerContext) throws Exception {
-	
-	}
-	
-	@Override
-	public void exceptionCaught(ChannelHandlerContext channelHandlerContext, Throwable throwable) throws Exception {
-	
 	}
 	
 	private void writeBytesToFile(ByteBuf byteBuf, File file, ChannelHandlerContext ctx) {
