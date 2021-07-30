@@ -1,11 +1,8 @@
 package com.vorobyov.cloudstorage.server.handlers;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandler;
-import io.netty.channel.ChannelPromise;
 import io.netty.channel.SimpleChannelInboundHandler;
 
-import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 

@@ -30,8 +30,6 @@ public class MainController {
 	private final DataOutputStream out = Network.getDataOutputStream();
 	private final ReadableByteChannel rbc = Network.getRbc();
 	private final ByteBuffer byteBuffer = Network.getByteBuffer();
-	private FileInputStream fileInputStream;
-	private FileOutputStream fileOutputStream;
 	
 	User user = Static.getUser();
 	
@@ -43,6 +41,7 @@ public class MainController {
 	@FXML	TableColumn<FileProperties, String> serverTableType;
 	@FXML	TableColumn<FileProperties, Long> serverTableSize;
 	@FXML	TableColumn<FileProperties, Date> serverTableLastModify;
+	
 	@FXML	Button downloadButton;
 	@FXML	Button uploadButton;
 	@FXML	Button copyButton;
@@ -53,11 +52,12 @@ public class MainController {
 	@FXML	Button renameButton;
 	@FXML	Button searchButton;
 	
-	@FXML	TableView<FileProperties> localFIleList;
+	@FXML	TableView<FileProperties> localFileList;
 	@FXML	TableColumn<FileProperties, String> localTableName;
 	@FXML	TableColumn<FileProperties, String> localTableType;
 	@FXML	TableColumn<FileProperties, Long> localTableSize;
 	@FXML	TableColumn<FileProperties, String> localTableLastModify;
+	
 	@FXML	TextArea viewTextArea;
 	@FXML	TextField searchField;
 	
@@ -160,12 +160,8 @@ public class MainController {
 	
 	}
 	
-	@FXML
-	public void initialize() {
-		getFilesList(Paths.get(user.getCurrentLocalPath()));
-	}
-	
-	private void getFilesList(Path currentPath) {
+	private void getLocalFilesList() {
+		Path currentPath = Paths.get(user.getCurrentLocalPath());
 		List<FileProperties> result = new ArrayList<>();
 		
 		try {
@@ -197,9 +193,30 @@ public class MainController {
 			localTableSize.setCellValueFactory(new PropertyValueFactory<>("size"));
 			localTableLastModify.setCellValueFactory(new PropertyValueFactory<>("lmDate"));
 
-			localFIleList.setItems(observableList);
+			localFileList.setItems(observableList);
 			
 		} catch (NullPointerException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Метод преобразует список файлов, полученный от сервера,
+	 * из String в List<FileProperties>. Разделителем между файлами
+	 * служит последовательность "<>", а между свойствами файла - ";;"
+	 */
+	private void getServerFileList() {
+		List<FileProperties> result;
+		try {
+			String fileList = read();
+			logger.info(fileList);
+			result = Arrays.stream(fileList.split("<>"))
+				.map(s -> s.split(";;"))
+				.map(s -> new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3]))))
+				.collect(Collectors.toList());
+			
+			renewServerTable(result);
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
@@ -236,32 +253,14 @@ public class MainController {
 	
 	@FXML
 	private void setSelectedFileName() {
-		TableView.TableViewSelectionModel<FileProperties> selectionModel = localFIleList.getSelectionModel();
+		TableView.TableViewSelectionModel<FileProperties> selectionModel = localFileList.getSelectionModel();
 		selectedFileName = selectionModel.getSelectedItem().getName();
 	}
 	
-	public MainController() {
+	@FXML
+	private void initialize() {
+		getLocalFilesList();
 		getServerFileList();
 	}
 	
-	/**
-	 * Метод преобразует список файлов, полученный от сервера,
-	 * из String в List<FileProperties>. Разделителем между файлами
-	 * служит последовательность "<>", а между свойствами файла - ";;"
-	 */
-	private void getServerFileList() {
-		List<FileProperties> result= new ArrayList<>();
-		try {
-			String fileList = read();
-			result = Arrays.stream(fileList.split("<>"))
-				.map(e -> {
-					String[] s = e.split(";;");
-					return new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3])));
-				})
-				.collect(Collectors.toList());
-			renewServerTable(result);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
 }
