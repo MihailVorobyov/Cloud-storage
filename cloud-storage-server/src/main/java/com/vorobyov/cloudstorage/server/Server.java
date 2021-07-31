@@ -35,9 +35,6 @@ public class Server {
 							new AuthHandler(),
 							new CommandsHandler(),
 							new StringToByteArrayHandler()
-
-							
-
 							);
 					}
 				});

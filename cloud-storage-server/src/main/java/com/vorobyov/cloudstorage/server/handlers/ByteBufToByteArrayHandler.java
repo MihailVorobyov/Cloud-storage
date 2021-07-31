@@ -5,6 +5,8 @@ import com.vorobyov.cloudstorage.server.utils.UserRegistration;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+
+import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 public class ByteBufToByteArrayHandler extends ChannelInboundHandlerAdapter {
@@ -47,15 +49,22 @@ public class ByteBufToByteArrayHandler extends ChannelInboundHandlerAdapter {
 		ByteBuf buf = (ByteBuf) msg;
 		logger.info("ByteBuf length = " + buf.readableBytes());
 		
-		byte[] b = new byte[buf.readableBytes()];
-		while (buf.isReadable()) {
-			buf.readBytes(b);
-		}
+//		byte[] b = new byte[buf.readableBytes()];
+//		while (buf.isReadable()) {
+//			buf.readBytes(b);
+//		}
+		ByteBuffer byteBuffer = buf.nioBuffer();
 		
 		if ("COMMAND".equals(expectFromChannel)) {
-			ctx.pipeline().get(ByteArrayToStringHandler.class).channelRead0(ctx, new ByteArray(b));
+//			ctx.pipeline().get(ByteArrayToStringHandler.class).channelRead0(ctx, new ByteArray(b));
+			ctx.pipeline().get(ByteArrayToStringHandler.class).channelRead0(ctx, byteBuffer);
+			
 		} else if ("DATA".equals(expectFromChannel)) {
-			ctx.fireChannelRead(new ByteArray(b));
+//			ctx.fireChannelRead(new ByteArray(b));
+			ctx.fireChannelRead(byteBuffer);
 		}
+		
+		buf.release();
+		byteBuffer.clear();
 	}
 }
