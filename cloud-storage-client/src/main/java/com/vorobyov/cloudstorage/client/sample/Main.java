@@ -17,7 +17,7 @@ public class Main extends Application {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/Main.fxml"));
         Parent root = loader.load();
         primaryStage.setTitle("Cloud storage");
-        Scene scene = new Scene(root, 1300, 480);
+        Scene scene = new Scene(root, 1100, 555);
         primaryStage.setScene(scene);
         primaryStage.setResizable(false);
         primaryStage.setOnCloseRequest(e -> {

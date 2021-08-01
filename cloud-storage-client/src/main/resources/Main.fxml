@@ -4,7 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox prefHeight="542.0" prefWidth="1095.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.vorobyov.cloudstorage.client.sample.MainController">
+<VBox prefHeight="542.0" prefWidth="1096.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.vorobyov.cloudstorage.client.sample.MainController">
    <children>
        <MenuBar prefHeight="0.0" prefWidth="200.0">
           <menus>

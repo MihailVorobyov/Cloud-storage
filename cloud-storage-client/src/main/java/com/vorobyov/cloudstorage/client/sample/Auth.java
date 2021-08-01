@@ -13,7 +13,7 @@ public class Auth extends Application {
     public void start(Stage primaryStage) throws Exception{
         Parent root = FXMLLoader.load(getClass().getResource("/Auth.fxml"));
         primaryStage.setTitle("Auth");
-        primaryStage.setScene(new Scene(root, 420, 420));
+        primaryStage.setScene(new Scene(root, 370, 320));
         primaryStage.setResizable(false);
         primaryStage.setOnCloseRequest(e -> {
             Platform.exit();

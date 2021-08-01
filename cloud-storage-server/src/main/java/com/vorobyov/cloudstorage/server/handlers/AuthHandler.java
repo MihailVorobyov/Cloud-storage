@@ -87,7 +87,7 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 				UserRegistration.usersOnline.add(userName);
 				ctx.write("signIn successful".getBytes(StandardCharsets.UTF_8), ctx.newPromise());
 				ctx.pipeline().remove(AuthHandler.class); //TODO возможны проблемы
-//				ctx.fireChannelRead("set_user_name " + userName);
+				ctx.fireChannelRead("setUserName " + userName);
 			}
 		} else {
 			logger.info("Wrong name or password: name = " + userName + ", password = " + password + ".");

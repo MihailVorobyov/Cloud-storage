@@ -35,7 +35,10 @@ public class MainController {
 	User user = Static.getUser();
 	
 	private String selectedFileName;
+	private String selectedPath;
 	private String selectedFileType;
+	private TableView<FileProperties> selectedTableView;
+	private TableView<FileProperties> from;
 	
 	@FXML	MenuItem closeWindow;
 	@FXML	TableView<FileProperties> serverFileList;
@@ -66,29 +69,28 @@ public class MainController {
 	@FXML	TextField searchField;
 	
 	@FXML
-	private void setServerSelectedFileName() {
-		setSelectedFileName(serverFileList);
-		setSelectedFileType(serverFileList);
+	private void initialize() {
 		
-		logger.info("selectedFileName is " + selectedFileName);
-		logger.info("selectedFileType is " + selectedFileType);
+		getLocalFileList();
+		getServerFileList("ls");
+	}
+	
+	@FXML
+	private void setServerSelectedFileName() {
+		selectedTableView = serverFileList;
+		setSelectedFileName(serverFileList);
 		
 		if (System.currentTimeMillis() - lastClickTime < doubleClickTime) {
-			if ("dir".equals(selectedFileType)) {
-				user.setCurrentServerPath(Paths.get(user.getCurrentServerPath(), selectedFileName).toString());
-				getServerFileList();
-			}
+			getServerFileList("open " + selectedFileName);
 		}
 		lastClickTime = System.currentTimeMillis();
 	}
 	
 	@FXML
 	private void setClientSelectedFileName() {
+		selectedTableView = localFileList;
 		setSelectedFileName(localFileList);
 		setSelectedFileType(localFileList);
-		
-		logger.info("selectedFileName is " + selectedFileName);
-		logger.info("selectedFileType is " + selectedFileType);
 		
 		if (System.currentTimeMillis() - lastClickTime < doubleClickTime) {
 			if ("dir".equals(selectedFileType)) {
@@ -97,12 +99,6 @@ public class MainController {
 			}
 		}
 		lastClickTime = System.currentTimeMillis();
-	}
-	
-	@FXML
-	private void initialize() {
-		getLocalFileList();
-		getServerFileList();
 	}
 	
 	private void writeCommand(String s) {
@@ -116,12 +112,40 @@ public class MainController {
 	
 	@FXML
 	private void copy() {
-	
+		try {
+			if (selectedTableView.equals(serverFileList)) {
+				
+				writeCommand("copy " + selectedFileName);
+				read();
+				
+			} else if (selectedTableView.equals(localFileList)) {
+				
+				selectedPath = Paths.get(user.getCurrentLocalPath(), selectedFileName).toString();
+				
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	@FXML
 	private void paste() {
-	
+		if (from.equals(serverFileList) && selectedTableView.equals(serverFileList)) {
+			getServerFileList("paste " + selectedFileName);
+		} else if (from.equals(localFileList) && selectedTableView.equals(localFileList)) {
+			String copiedFileName = new File(selectedPath).getName();
+			String tempName = copiedFileName;
+			int suffix = 1;
+			String finalCopiedFileName = copiedFileName;
+			while (Arrays.stream(new File(user.getCurrentLocalPath()).listFiles())
+				.map(f -> f.getName())
+				.anyMatch(n -> n.equals(finalCopiedFileName))) {
+				tempName = copiedFileName + suffix++;
+			}
+			copiedFileName = tempName;
+			new File(user.getCurrentLocalPath() + File.separator + copiedFileName);
+		}
+		// TODO ещё 2 проверки
 	}
 	
 	@FXML
@@ -167,6 +191,7 @@ public class MainController {
 		String serverAnswer = new String(Arrays.copyOfRange(byteBuffer.array(), 0, readNumberBytes))
 			.replaceAll("\\n", "").replace("\r", "");
 		byteBuffer.clear();
+		logger.info("server answer: " + serverAnswer);
 		return serverAnswer;
 	}
 	
@@ -188,15 +213,14 @@ public class MainController {
 				out.write(command.getBytes(StandardCharsets.UTF_8));
 				out.flush();
 				String answer = read();
-				logger.info("answer from server: " + answer);
 				if ("/upload accepted".equals(answer)) {
 					sendFile(file);
 					
 					answer = read();
 					if (answer.startsWith("/upload complete")) {
-						logger.info("answer from server: " + answer);
+//						logger.info("answer from server: " + answer);
 					} else if ("/upload failed".equals(answer)) {
-						logger.info("answer from server: " + answer);
+//						logger.info("answer from server: " + answer);
 					}
 					getServerFileList();
 				}
@@ -275,6 +299,40 @@ public class MainController {
 		}
 	}
 	
+//	private void getServerFileList(String fileList) {
+//		List<FileProperties> result = new ArrayList<>();
+//
+//		if (!" ".equals(fileList)) {
+//			logger.info("filelist = " + fileList);
+//			result = Arrays.stream(fileList.split("<>"))
+//				.map(s -> s.split(";;"))
+//				.map(s -> new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3]))))
+//				.collect(Collectors.toList());
+//		}
+//		renewServerTable(result);
+//	}
+	
+	private void getServerFileList(String command) {
+		List<FileProperties> result = new ArrayList<>();
+		
+		try {
+			writeCommand(command);
+			String fileList = read();
+			if (!" ".equals(fileList)) {
+				logger.info("filelist = " + fileList);
+				result = Arrays.stream(fileList.split("<>"))
+					.map(s -> s.split(";;"))
+					.map(s -> new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3]))))
+					.collect(Collectors.toList());
+			}
+			
+			renewServerTable(result);
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	private void renewServerTable(List<FileProperties> fpList) {
 		
 		ObservableList<FileProperties> observableList = FXCollections.observableArrayList();
@@ -328,7 +386,16 @@ public class MainController {
 	
 	@FXML
 	private void serverListUp() {
-	
+		writeCommand("cd ..");
+		try {
+			getServerFileList(read());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+//		if (Paths.get(user.getCurrentServerPath()).getParent() != null) {
+//			user.setCurrentServerPath(Paths.get(user.getCurrentServerPath()).getParent().toString());
+//
+//		}
 	}
 	
 }

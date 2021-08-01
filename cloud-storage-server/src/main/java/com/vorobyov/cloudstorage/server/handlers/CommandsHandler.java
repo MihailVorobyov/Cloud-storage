@@ -20,6 +20,8 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	Logger logger = Logger.getLogger(this.getClass().getName());
 	String userName;
 	String currentPath;
+	Path from;
+	Path to;
 	
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
@@ -34,8 +36,14 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		logger.info("Command from client: " + command);
 		if (command.startsWith("setCurrentPath ")) {
 			ctx.fireChannelRead(setCurrentPath(command));
+		} else if (command.startsWith("setUserName ")) {
+			userName = command.split(" ")[1];
+			logger.info("user name is " + userName);
+			setCurrentPath("setCurrentPath " + userName);
 		} else if (command.startsWith("ls")) {
 			ctx.fireChannelRead(getFilesList());
+		} else if (command.startsWith("open ")) {
+			ctx.fireChannelRead(openFile(command));
 		} else if (command.startsWith("touch ")) {
 			ctx.fireChannelRead(createFile(command)); //TODO убрать currentPath - будет передаваться от клиента
 		} else if (command.startsWith("mkdir ")) {
@@ -46,6 +54,8 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 			ctx.fireChannelRead(remove(command, currentPath));
 		} else if (command.startsWith("copy ")) {
 			ctx.fireChannelRead(copy(command));
+		}else if (command.startsWith("paste ")) {
+			ctx.fireChannelRead(paste(command));
 		} else if (command.startsWith("cat ")) {
 			ctx.fireChannelRead(viewFile(command));
 		} else if (command.startsWith("rename ")) {
@@ -63,6 +73,22 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		} else {
 			ctx.fireChannelRead(command);
 		}
+		logger.info(currentPath);
+		
+	}
+	
+
+	private String openFile(String command) {
+		String name = command.replaceFirst("open ", "");
+		Path p = Paths.get(currentPath, name);
+		if (Files.isDirectory(p)) {
+			setCurrentPath("setCurrentPath " + p.toString());
+			return getFilesList();
+		} else if (Files.isRegularFile(p)) {
+			// send file
+			return currentPath;
+		}
+		return currentPath;
 	}
 	
 	private void disconnect( ) {
@@ -187,8 +213,13 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	private String setCurrentPath(String command) {
 		String[] s = command.split(" ", 2);
 		String path = s[1];
-		currentPath = Paths.get("server", path).toString(); //TODO currentPath ????
+		if (path.startsWith("server")) {
+			currentPath = path;
+		} else {
+			currentPath = Paths.get("server", path).toString(); //TODO currentPath ????
+		}
 		logger.info("current path is " + currentPath);
+		
 		return "OK";
 	}
 	
@@ -197,7 +228,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	 * @return Возвращает содержимое текущей директории в виде List<FileProperties>
 	 */
 	private String getFilesList() {
-		String result = null;
+		String result = " ";
 		
 		try {
 			if (Files.list(Paths.get(currentPath)).count() != 0) {
@@ -242,11 +273,16 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	
 	// копирование файлов / директории
 	private String copy(String command) {
-		String[] arguments = command.split(" ", 3);
+		from = Paths.get(currentPath, command.split(" ")[1]);
+		return "file copied";
+	}
+	
+	private String paste(String command) {
+		String[] arguments = command.split(" ", 2);
 		
 		try {
 			//TODO пути заключить в кавычки
-			Path source = Paths.get(currentPath, arguments[1].trim());
+			Path source = from;
 			Path target = Paths.get(currentPath, arguments[2].trim());
 			
 			if (Files.isRegularFile(source)) { //TODO если файл с таким именем существет...
@@ -345,7 +381,6 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 				this.currentPath = Paths.get(currentPath, path).normalize().toString();
 			}
 		}
-		
 		return getFilesList();
 	}
 	
