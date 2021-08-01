@@ -83,11 +83,23 @@ public class MainController {
 	@FXML
 	private void setClientSelectedFileName() {
 		setSelectedFileName(localFileList);
+		setSelectedFileType(localFileList);
+		
+		logger.info("selectedFileName is " + selectedFileName);
+		logger.info("selectedFileType is " + selectedFileType);
+		
+		if (System.currentTimeMillis() - lastClickTime < doubleClickTime) {
+			if ("dir".equals(selectedFileType)) {
+				user.setCurrentLocalPath(Paths.get(user.getCurrentLocalPath(), selectedFileName).toString());
+				getLocalFileList();
+			}
+		}
+		lastClickTime = System.currentTimeMillis();
 	}
 	
 	@FXML
 	private void initialize() {
-		getLocalFilesList();
+		getLocalFileList();
 		getServerFileList();
 	}
 	
@@ -192,7 +204,7 @@ public class MainController {
 		}
 	}
 	
-	private void getLocalFilesList() {
+	private void getLocalFileList() {
 		Path currentPath = Paths.get(user.getCurrentLocalPath());
 		List<FileProperties> result = new ArrayList<>();
 		
