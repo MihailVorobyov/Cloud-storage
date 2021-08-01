@@ -53,6 +53,8 @@ public class MainController {
 	@FXML	Button makeDirButton;
 	@FXML	Button renameButton;
 	@FXML	Button searchButton;
+	@FXML   Button serverUpButton;
+	@FXML   Button localUpButton;
 	
 	@FXML	TableView<FileProperties> localFileList;
 	@FXML	TableColumn<FileProperties, String> localTableName;
@@ -313,4 +315,20 @@ public class MainController {
 			selectedFileType = tv.getSelectionModel().getSelectedItem().getType();
 		}
 	}
+	
+	@FXML
+	private void localListUp() {
+		if (Paths.get(user.getCurrentLocalPath()).getParent() != null) {
+			user.setCurrentLocalPath(Paths.get(user.getCurrentLocalPath()).getParent().toString());
+			logger.info("Go to parent");
+			getLocalFileList();
+		}
+		logger.info("no changes");
+	}
+	
+	@FXML
+	private void serverListUp() {
+	
+	}
+	
 }

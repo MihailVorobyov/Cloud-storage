@@ -4,7 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox prefHeight="487.0" prefWidth="1297.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.vorobyov.cloudstorage.client.sample.MainController">
+<VBox prefHeight="542.0" prefWidth="1095.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.vorobyov.cloudstorage.client.sample.MainController">
    <children>
        <MenuBar prefHeight="0.0" prefWidth="200.0">
           <menus>
@@ -25,9 +25,15 @@
               </Menu>
           </menus>
        </MenuBar>
+      <Pane minHeight="30.0" prefHeight="30.0">
+         <children>
+            <Button fx:id="serverUpButton" layoutX="14.0" layoutY="3.0" mnemonicParsing="false" onAction="#serverListUp" text="Up" />
+            <Button fx:id="localUpButton" layoutX="583.0" layoutY="3.0" mnemonicParsing="false" onAction="#localListUp" text="Up" />
+         </children>
+      </Pane>
        <Pane prefHeight="483.0" prefWidth="869.0">
           <children>
-              <SplitPane dividerPositions="0.29797979797979796, 0.5" prefHeight="462.0" prefWidth="1297.0">
+              <SplitPane dividerPositions="0.29797979797979796, 0.5" prefHeight="462.0" prefWidth="1095.0">
                  <items>
                      <AnchorPane minHeight="0.0" minWidth="516.0" prefHeight="460.0" prefWidth="516.0">
                         <children>
@@ -58,7 +64,7 @@
                             </FlowPane>
                         </children>
                      </AnchorPane>
-                     <AnchorPane minHeight="0.0" minWidth="516.0" prefHeight="460.0" prefWidth="518.0">
+                     <AnchorPane minHeight="0.0" minWidth="400.0" prefHeight="460.0" prefWidth="481.0">
                         <children>
                             <TableView fx:id="localFileList" onMouseClicked="#setClientSelectedFileName" prefHeight="438.0" prefWidth="516.0">
                                 <columns>
@@ -68,7 +74,6 @@
                                     <TableColumn fx:id="localTableLastModify" editable="false" maxWidth="140.0" minWidth="140.0" prefWidth="140.0" resizable="false" text="Последнее изменение" />
                                 </columns>
                             </TableView>
-                            <TextArea fx:id="viewTextArea" editable="false" layoutX="516.0" prefHeight="438.0" prefWidth="200.0" wrapText="true" />
                         </children>
                      </AnchorPane>
                  </items>
