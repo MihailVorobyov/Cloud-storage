@@ -29,10 +29,13 @@ public class MainController {
 	private final DataOutputStream out = Network.getDataOutputStream();
 	private final ReadableByteChannel rbc = Network.getRbc();
 	private final ByteBuffer byteBuffer = Network.getByteBuffer();
+	private final long doubleClickTime = 300;
+	private long lastClickTime;
 	
 	User user = Static.getUser();
 	
 	private String selectedFileName;
+	private String selectedFileType;
 	
 	@FXML	MenuItem closeWindow;
 	@FXML	TableView<FileProperties> serverFileList;
@@ -63,6 +66,18 @@ public class MainController {
 	@FXML
 	private void setServerSelectedFileName() {
 		setSelectedFileName(serverFileList);
+		setSelectedFileType(serverFileList);
+		
+		logger.info("selectedFileName is " + selectedFileName);
+		logger.info("selectedFileType is " + selectedFileType);
+		
+		if (System.currentTimeMillis() - lastClickTime < doubleClickTime) {
+			if ("dir".equals(selectedFileType)) {
+				user.setCurrentServerPath(Paths.get(user.getCurrentServerPath(), selectedFileName).toString());
+				getServerFileList();
+			}
+		}
+		lastClickTime = System.currentTimeMillis();
 	}
 	
 	@FXML
@@ -79,6 +94,7 @@ public class MainController {
 	private void writeCommand(String s) {
 		try {
 			out.write(s.getBytes(StandardCharsets.UTF_8));
+			out.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -222,16 +238,24 @@ public class MainController {
 	 * служит последовательность "<>", а между свойствами файла - ";;"
 	 */
 	private void getServerFileList() {
-		List<FileProperties> result;
+		List<FileProperties> result = new ArrayList<>();
+		
 		try {
+			writeCommand("setCurrentPath " + user.getCurrentServerPath());
+			logger.info(read());
+			
 			writeCommand("ls");
 			String fileList = read();
-			result = Arrays.stream(fileList.split("<>"))
-				.map(s -> s.split(";;"))
-				.map(s -> new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3]))))
-				.collect(Collectors.toList());
+			if (!" ".equals(fileList)) {
+				logger.info("filelist = " + fileList);
+				result = Arrays.stream(fileList.split("<>"))
+					.map(s -> s.split(";;"))
+					.map(s -> new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3]))))
+					.collect(Collectors.toList());
+			}
 			
 			renewServerTable(result);
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -270,6 +294,11 @@ public class MainController {
 	private void setSelectedFileName(TableView<FileProperties> tv) {
 		if (tv.getSelectionModel().getSelectedItem() != null) {
 			selectedFileName = tv.getSelectionModel().getSelectedItem().getName();
+		}
+	}
+	private void setSelectedFileType(TableView<FileProperties> tv) {
+		if (tv.getSelectionModel().getSelectedItem() != null) {
+			selectedFileType = tv.getSelectionModel().getSelectedItem().getType();
 		}
 	}
 }

@@ -32,8 +32,8 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 				.replace("\r", "")
 				.replace("\n", "");
 		logger.info("Command from client: " + command);
-		if (command.startsWith("set_user_name ")) {
-			setUpUser(command);
+		if (command.startsWith("setCurrentPath ")) {
+			ctx.fireChannelRead(setCurrentPath(command));
 		} else if (command.startsWith("ls")) {
 			ctx.fireChannelRead(getFilesList());
 		} else if (command.startsWith("touch ")) {
@@ -184,10 +184,12 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return getFilesList();
 	}
 	
-	private void setUpUser(String command) {
+	private String setCurrentPath(String command) {
 		String[] s = command.split(" ", 2);
-		userName = s[1];
-		currentPath = Paths.get("server", userName).toString(); //TODO currentPath ????
+		String path = s[1];
+		currentPath = Paths.get("server", path).toString(); //TODO currentPath ????
+		logger.info("current path is " + currentPath);
+		return "OK";
 	}
 	
 	/**
@@ -195,16 +197,22 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	 * @return Возвращает содержимое текущей директории в виде List<FileProperties>
 	 */
 	private String getFilesList() {
-		String result = "";
-
+		String result = null;
+		
 		try {
-			result = Files.list(Paths.get(currentPath))
-				.map(p -> new FileProperties(p.getFileName().toString(),
-					getFileExtension(p),
-					new File(p.toString()).length(),
-					new Date(new File(p.toString()).lastModified())))
-				.map(FileProperties::toString)
-				.collect(Collectors.joining("<>"));
+			if (Files.list(Paths.get(currentPath)).count() != 0) {
+				result = Files.list(Paths.get(currentPath))
+					.map(p -> new FileProperties(p.getFileName().toString(),
+						getFileExtension(p),
+						new File(p.toString()).length(),
+						new Date(new File(p.toString()).lastModified())))
+					.map(FileProperties::toString)
+					.collect(Collectors.joining("<>"));
+			} else {
+				result = " ";
+			}
+			
+			logger.info("File list:  " + result);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -215,7 +223,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		String pathFile = path.toString();
 		int lastIndexOf = pathFile.lastIndexOf(".");
 		if (lastIndexOf == -1) {
-			return "";
+			return "dir";
 		}
 		return pathFile.substring(lastIndexOf);
 	}

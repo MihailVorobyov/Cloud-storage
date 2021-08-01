@@ -26,6 +26,7 @@ public class FileProperties {
 	 */
 	@Override
 	public String toString() {
+		
 		return String.join(";;",name, type, String.valueOf(size), String.valueOf(date.getTime()));
 	}
 	

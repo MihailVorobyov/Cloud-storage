@@ -100,10 +100,10 @@ public class AuthController {
 	
 	private void auth(String s) throws Exception {
 		String result;
-		logger.info("write..." + s);
+//		logger.info("write..." + s);
 		write(s);
 		
-		logger.info("read...");
+//		logger.info("read...");
 		result = read().replace("\n", "").replace("\r", "").trim();
 		
 		if ("signIn successful".equals(result)) {
@@ -126,7 +126,7 @@ public class AuthController {
 	}
 	
 	private void write(String s) {
-		logger.info(s);
+//		logger.info(s);
 		try {
 			out.write(s.getBytes());
 			out.flush();
