@@ -51,7 +51,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		} else if (command.startsWith("cd ")) {
 			ctx.fireChannelRead(changeDirectory(command));
 		} else if (command.startsWith("rm ")) {
-			ctx.fireChannelRead(remove(command, currentPath));
+			ctx.fireChannelRead(remove(command));
 		} else if (command.startsWith("copy ")) {
 			ctx.fireChannelRead(copy(command));
 		}else if (command.startsWith("paste ")) {
@@ -62,7 +62,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 			ctx.fireChannelRead(rename(command));
 		} else if (command.startsWith("move ")) {
 			ctx.fireChannelRead(move(command));
-//		} else if (command.startsWith("download ")) {
+//		} else if (command.equals("download")) {
 //			ctx.fireChannelRead(download(command));
 		} else if (command.startsWith("upload ")) {
 			ctx.fireChannelRead(upload(command, ctx));
@@ -149,25 +149,30 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return result;
 	}
 	
+	/**
+	 *
+	 * @param command Команда формата "move source_path target_path"
+	 * @return Возвращает список файлов текущей директории
+	 * @throws IOException
+	 */
 	private String move(String command) throws IOException {
-		String[] s = command.trim().split(" ", 3);
+		String[] s = command.trim().split(" ", 2);
 
-		String sourcePath = s[1];
-		String targetPath = s[2];
+		Path sourcePath = from;
+		Path targetPath = Paths.get(currentPath, s[1]);
 		
-		if (Files.isDirectory(Paths.get(sourcePath))) {
+		if (Files.isDirectory(sourcePath)) {
 			moveDirectory(sourcePath, targetPath);
 			
 		} else {
-			String fileName = new File(sourcePath).getName();
-			Files.move(Paths.get(currentPath, sourcePath), Paths.get(currentPath, targetPath, fileName));
+			Files.move(sourcePath, targetPath);
 		}
 		return getFilesList();
 	}
 	
-	private void moveDirectory (String src, String trg) {
-		Path source = Paths.get(src);
-		Path target = Paths.get(trg);
+	private void moveDirectory (Path src, Path trg) {
+		Path source = src;
+		Path target = trg;
 		
 		try {
 			Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
@@ -326,15 +331,15 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	}
 	
 	// Удаление файла / директории
-	private String remove(String command, String currentPath) throws IOException {
+	private String remove(String command) throws IOException {
 		Path target;
 		
-		String[] arguments = command.split(" ", 2);
+		String name = command.split(" ")[1];
 		
 		if ("$root$".equals(currentPath)) {
 			target = Paths.get("server", userName);
 		} else {
-			target = Paths.get(currentPath, arguments[1].trim());
+			target = Paths.get(currentPath, name.trim());
 			if (currentPath.equals(target.toString())) {
 				logger.warning("Wrong command!");
 			}

@@ -13,6 +13,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SelectableChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,6 +39,7 @@ public class MainController {
 	private TableView<FileProperties> from;
 	private String source;
 	private String target;
+	private boolean cutMode;
 	
 	@FXML	MenuItem closeWindow;
 	@FXML	TableView<FileProperties> serverFileList;
@@ -64,7 +66,6 @@ public class MainController {
 	@FXML	TableColumn<FileProperties, Long> localTableSize;
 	@FXML	TableColumn<FileProperties, String> localTableLastModify;
 	
-	@FXML	TextArea viewTextArea;
 	@FXML	TextField searchField;
 	
 	@FXML
@@ -90,6 +91,9 @@ public class MainController {
 		selectedTableView = localFileList;
 		setSelectedFileName(localFileList);
 		setSelectedFileType(localFileList);
+		selectedPath = user.getCurrentLocalPath() + File.separator + selectedFileName;
+		
+		logger.info("selectedPath is " + selectedPath);
 		
 		if (System.currentTimeMillis() - lastClickTime < doubleClickTime) {
 			if ("dir".equals(selectedFileType)) {
@@ -113,13 +117,14 @@ public class MainController {
 	private void copy() {
 		try {
 			if (selectedTableView == serverFileList) {
-				
-				writeCommand("copy " + selectedFileName);
+				from = serverFileList;
+				source = selectedFileName;
+				writeCommand("copy " + source);
 				logger.info(read());
 				
 			} else if (selectedTableView == localFileList) {
 				from = localFileList;
-				source = Paths.get(user.getCurrentLocalPath(), selectedFileName).toString();
+				source = selectedPath;
 				logger.info("Source = " + source);
 				
 			}
@@ -129,7 +134,7 @@ public class MainController {
 	}
 	
 	@FXML
-	private void paste() {
+	private void paste() { // TODO предложение заменить
 		target = user.getCurrentLocalPath() + File.separator + new File(source).getName();
 		logger.info("target is " + target);
 		logger.info("from = " + from + " , to = " + selectedTableView);
@@ -138,85 +143,137 @@ public class MainController {
 		FileOutputStream fos = null;
 		
 		if (from == serverFileList && selectedTableView == serverFileList) {
-			getServerFileList("paste");
+			if (cutMode) {
+				getServerFileList("move " + source);
+				cutMode = false;
+			} else {
+				getServerFileList("paste");
+			}
+			
 			logger.info("Past to server complete");
 			
 		} else if (from == localFileList && selectedTableView == localFileList) {
+			File targetFile = new File(target);
 			
-			try {
-				File targetFile = new File(target);
-				
-				int suffix = 1;
-				String[] newNameAndExtension = targetFile.getName().split("\\.");
-				
-				while (targetFile.exists()) {
-					logger.info("File already exists");
-					
-					final String copiedFileName = String.format("%s(%d).%s", newNameAndExtension[0], suffix++,
-						newNameAndExtension[1]);
-					
-					if (Arrays.stream(Objects.requireNonNull(new File(user.getCurrentLocalPath()).listFiles()))
-						.map(File::getName)
-						.noneMatch(n -> n.equals(copiedFileName))
-					){
-						target = user.getCurrentLocalPath() + File.separator + copiedFileName;
-						break;
-					}
+			if (cutMode) {
+				if (targetFile.exists()) { // TODO предложение заменить
+					cutMode = false;
+					paste();
 				}
-				
-				targetFile = new File(target);
-				targetFile.createNewFile();
-				
-				fis = new FileInputStream(source);
-				fos = new FileOutputStream(target);
-				
-				logger.info("target file is " + targetFile.getName());
-				
-				ByteBuffer bb = ByteBuffer.allocate(1024 * 1024);
-				int bytesRead = 0;
-				while (fis.available() > 0) {
-					bytesRead = fis.getChannel().read(bb);
-					logger.info(bytesRead + " bytes was read");
-					bb.flip();
-					logger.info("flip buffer");
-					fos.getChannel().write(bb);
-					bb.rewind();
-					logger.info("rewind buffer");
-				}
-				logger.info("Past to local complete");
-				
-				
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-				logger.warning("Problem with paste file from " + source + " to " + target);
-			} catch (IOException e) {
-				e.printStackTrace();
-			} finally {
+			} else {
 				try {
-					if (fis != null) {
-						fis.close();
-					}
-					if (fos != null) {
-						fos.close();
+					
+					int suffix = 1;
+					String[] newNameAndExtension = targetFile.getName().split("\\.");
+					
+					while (targetFile.exists()) {
+						logger.info("File already exists");
+						
+						final String copiedFileName = String.format("%s(%d).%s", newNameAndExtension[0], suffix++,
+							newNameAndExtension[1]);
+						
+						if (Arrays.stream(Objects.requireNonNull(new File(user.getCurrentLocalPath()).listFiles()))
+							.map(File::getName)
+							.noneMatch(n -> n.equals(copiedFileName))
+						) {
+							target = user.getCurrentLocalPath() + File.separator + copiedFileName;
+							break;
+						}
 					}
 					
+					targetFile = new File(target);
+					targetFile.createNewFile();
+					
+					fis = new FileInputStream(source);
+					fos = new FileOutputStream(target);
+					
+					logger.info("target file is " + targetFile.getName());
+					
+					ByteBuffer bb = ByteBuffer.allocate(1024 * 1024);
+					int bytesRead;
+					while (fis.available() > 0) {
+						bytesRead = fis.getChannel().read(bb);
+						logger.info(bytesRead + " bytes was read");
+						bb.flip();
+						logger.info("flip buffer");
+						fos.getChannel().write(bb);
+						bb.rewind();
+						logger.info("rewind buffer");
+					}
+					logger.info("Past to local complete");
+					
+					
+				} catch (FileNotFoundException e) {
+					e.printStackTrace();
+					logger.warning("Problem with paste file from " + source + " to " + target);
 				} catch (IOException e) {
 					e.printStackTrace();
+				} finally {
+					try {
+						if (fis != null) {
+							fis.close();
+						}
+						if (fos != null) {
+							fos.close();
+						}
+						
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 			getLocalFileList();
+		} else if (from == serverFileList && selectedTableView == localFileList) {
+			getServerFileList("download");
+			
+			if (cutMode) {
+				getServerFileList("rm " + source);
+				cutMode = false;
+			}
+			
+		} else if (from == localFileList && selectedTableView == serverFileList) {
+			upload(new File(source).getName()); //TODO если директория
+			
+			if (cutMode) {
+				delete(source);
+				cutMode = false;
+			}
 		}
-		// TODO ещё 2 проверки
 	}
 	
 	@FXML
 	private void cut() {
+		cutMode = true;
+		copy();
+	}
 	
+	
+	private void delete(String path) {
+		File fileToDelete = new File(path);
+		if (fileToDelete.exists()) {
+			if (fileToDelete.isFile()) {
+				boolean d = fileToDelete.delete();
+				logger.info("Delete file from client is " + d);
+			} else {
+				deleteDirectory(fileToDelete);
+			}
+		}
+		getLocalFileList();
 	}
 	
 	@FXML
 	private void delete() {
+		if (selectedTableView == localFileList) {
+			delete(selectedPath);
+		} else if (selectedTableView == serverFileList) {
+			getServerFileList("rm " + selectedFileName);
+			logger.info("Delete file from server");
+		}
+	}
 	
+	private void deleteDirectory(File source) {
+		Arrays.stream(Objects.requireNonNull(source.listFiles()))
+			.forEach(f -> delete(f.getAbsolutePath()));
 	}
 	
 	@FXML
@@ -263,14 +320,21 @@ public class MainController {
 	
 	@FXML
 	private void upload() {
+		if (selectedTableView == localFileList ) {
+			upload(selectedFileName);
+		}
+	}
+	
+	
+	private void upload(String fileName) {
 
 		String localPath = user.getCurrentLocalPath();
 		String serverPath = user.getCurrentServerPath();
-		File file = new File(Paths.get(localPath, selectedFileName).toString());
+		File file = new File(localPath + File.separator + fileName);
 		if (file.isFile()) {
 			long fileSize = file.length();
 			try {
-				String command = "upload " + Paths.get(serverPath, selectedFileName) + " " + fileSize;
+				String command = "upload " + Paths.get(serverPath, fileName) + " " + fileSize;
 				out.write(command.getBytes(StandardCharsets.UTF_8));
 				out.flush();
 				String answer = read();
@@ -288,6 +352,8 @@ public class MainController {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		} else if (file.isDirectory()){
+			//TODO
 		}
 	}
 	
@@ -359,19 +425,6 @@ public class MainController {
 			e.printStackTrace();
 		}
 	}
-	
-//	private void getServerFileList(String fileList) {
-//		List<FileProperties> result = new ArrayList<>();
-//
-//		if (!" ".equals(fileList)) {
-//			logger.info("filelist = " + fileList);
-//			result = Arrays.stream(fileList.split("<>"))
-//				.map(s -> s.split(";;"))
-//				.map(s -> new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3]))))
-//				.collect(Collectors.toList());
-//		}
-//		renewServerTable(result);
-//	}
 	
 	private void getServerFileList(String command) {
 		List<FileProperties> result = new ArrayList<>();
@@ -458,5 +511,4 @@ public class MainController {
 //
 //		}
 	}
-	
 }
