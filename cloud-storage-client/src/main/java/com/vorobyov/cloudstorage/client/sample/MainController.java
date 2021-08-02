@@ -17,10 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -39,6 +36,8 @@ public class MainController {
 	private String selectedFileType;
 	private TableView<FileProperties> selectedTableView;
 	private TableView<FileProperties> from;
+	private String source;
+	private String target;
 	
 	@FXML	MenuItem closeWindow;
 	@FXML	TableView<FileProperties> serverFileList;
@@ -76,7 +75,7 @@ public class MainController {
 	}
 	
 	@FXML
-	private void setServerSelectedFileName() {
+	private void serverFileListClicked() {
 		selectedTableView = serverFileList;
 		setSelectedFileName(serverFileList);
 		
@@ -87,7 +86,7 @@ public class MainController {
 	}
 	
 	@FXML
-	private void setClientSelectedFileName() {
+	private void localFileListClicked() { //TODO проблема с прокруткой в новой папке
 		selectedTableView = localFileList;
 		setSelectedFileName(localFileList);
 		setSelectedFileType(localFileList);
@@ -113,14 +112,15 @@ public class MainController {
 	@FXML
 	private void copy() {
 		try {
-			if (selectedTableView.equals(serverFileList)) {
+			if (selectedTableView == serverFileList) {
 				
 				writeCommand("copy " + selectedFileName);
-				read();
+				logger.info(read());
 				
-			} else if (selectedTableView.equals(localFileList)) {
-				
-				selectedPath = Paths.get(user.getCurrentLocalPath(), selectedFileName).toString();
+			} else if (selectedTableView == localFileList) {
+				from = localFileList;
+				source = Paths.get(user.getCurrentLocalPath(), selectedFileName).toString();
+				logger.info("Source = " + source);
 				
 			}
 		} catch (IOException e) {
@@ -130,20 +130,81 @@ public class MainController {
 	
 	@FXML
 	private void paste() {
-		if (from.equals(serverFileList) && selectedTableView.equals(serverFileList)) {
-			getServerFileList("paste " + selectedFileName);
-		} else if (from.equals(localFileList) && selectedTableView.equals(localFileList)) {
-			String copiedFileName = new File(selectedPath).getName();
-			String tempName = copiedFileName;
-			int suffix = 1;
-			String finalCopiedFileName = copiedFileName;
-			while (Arrays.stream(new File(user.getCurrentLocalPath()).listFiles())
-				.map(f -> f.getName())
-				.anyMatch(n -> n.equals(finalCopiedFileName))) {
-				tempName = copiedFileName + suffix++;
+		target = user.getCurrentLocalPath() + File.separator + new File(source).getName();
+		logger.info("target is " + target);
+		logger.info("from = " + from + " , to = " + selectedTableView);
+		
+		FileInputStream fis = null;
+		FileOutputStream fos = null;
+		
+		if (from == serverFileList && selectedTableView == serverFileList) {
+			getServerFileList("paste");
+			logger.info("Past to server complete");
+			
+		} else if (from == localFileList && selectedTableView == localFileList) {
+			
+			try {
+				File targetFile = new File(target);
+				
+				int suffix = 1;
+				String[] newNameAndExtension = targetFile.getName().split("\\.");
+				
+				while (targetFile.exists()) {
+					logger.info("File already exists");
+					
+					final String copiedFileName = String.format("%s(%d).%s", newNameAndExtension[0], suffix++,
+						newNameAndExtension[1]);
+					
+					if (Arrays.stream(Objects.requireNonNull(new File(user.getCurrentLocalPath()).listFiles()))
+						.map(File::getName)
+						.noneMatch(n -> n.equals(copiedFileName))
+					){
+						target = user.getCurrentLocalPath() + File.separator + copiedFileName;
+						break;
+					}
+				}
+				
+				targetFile = new File(target);
+				targetFile.createNewFile();
+				
+				fis = new FileInputStream(source);
+				fos = new FileOutputStream(target);
+				
+				logger.info("target file is " + targetFile.getName());
+				
+				ByteBuffer bb = ByteBuffer.allocate(1024 * 1024);
+				int bytesRead = 0;
+				while (fis.available() > 0) {
+					bytesRead = fis.getChannel().read(bb);
+					logger.info(bytesRead + " bytes was read");
+					bb.flip();
+					logger.info("flip buffer");
+					fos.getChannel().write(bb);
+					bb.rewind();
+					logger.info("rewind buffer");
+				}
+				logger.info("Past to local complete");
+				
+				
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+				logger.warning("Problem with paste file from " + source + " to " + target);
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					if (fis != null) {
+						fis.close();
+					}
+					if (fos != null) {
+						fos.close();
+					}
+					
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
-			copiedFileName = tempName;
-			new File(user.getCurrentLocalPath() + File.separator + copiedFileName);
+			getLocalFileList();
 		}
 		// TODO ещё 2 проверки
 	}

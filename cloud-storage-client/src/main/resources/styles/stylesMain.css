@@ -2,7 +2,6 @@
     -fx-background-repeat: no-repeat;
     -fx-background-position: center center;
 }
-
 #copyButton {
     -fx-background-image: url("/images/32x32/Copy.png");
 }

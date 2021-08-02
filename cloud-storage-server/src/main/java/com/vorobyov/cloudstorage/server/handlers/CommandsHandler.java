@@ -55,7 +55,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		} else if (command.startsWith("copy ")) {
 			ctx.fireChannelRead(copy(command));
 		}else if (command.startsWith("paste ")) {
-			ctx.fireChannelRead(paste(command));
+			ctx.fireChannelRead(paste());
 		} else if (command.startsWith("cat ")) {
 			ctx.fireChannelRead(viewFile(command));
 		} else if (command.startsWith("rename ")) {
@@ -277,18 +277,19 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return "file copied";
 	}
 	
-	private String paste(String command) {
-		String[] arguments = command.split(" ", 2);
+	private String paste() {
 		
 		try {
 			//TODO пути заключить в кавычки
-			Path source = from;
-			Path target = Paths.get(currentPath, arguments[2].trim());
+			Path to = Paths.get(currentPath);
 			
-			if (Files.isRegularFile(source)) { //TODO если файл с таким именем существет...
-				Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING); //TODO
-			} else if (Files.isDirectory(source)){
-				copyDirectory(source, target);
+			if (Files.isRegularFile(from)) { //TODO если файл с таким именем существет...
+				Files.copy(from, to, StandardCopyOption.REPLACE_EXISTING); //TODO
+				logger.info("File copied");
+			} else if (Files.isDirectory(from)){
+				copyDirectory(from, to);
+				logger.info("Directory copied");
+				
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
