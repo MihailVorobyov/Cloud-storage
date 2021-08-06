@@ -24,7 +24,7 @@ public class OutboundHandler extends ChannelOutboundHandlerAdapter {
 		logger.info("Starting write to channel...");
 		
 		byte[] bytes = (byte[]) msg;
-		logger.info("output message: " + new String(bytes, StandardCharsets.UTF_8));
+//		logger.info("output message: " + new String(bytes, StandardCharsets.UTF_8));
 		ByteBuf buf = Unpooled.directBuffer();
 		buf.writeBytes(bytes);
 		ctx.writeAndFlush(buf);

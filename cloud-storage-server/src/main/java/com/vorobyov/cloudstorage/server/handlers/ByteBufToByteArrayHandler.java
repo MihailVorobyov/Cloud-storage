@@ -32,9 +32,6 @@ public class ByteBufToByteArrayHandler extends ChannelInboundHandlerAdapter {
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
 		logger.info("Client " + ctx.channel().remoteAddress() + " connected.");
 		
-		//TODO удалить после проверки
-		UserRegistration.authData.put("user1", "pass1");
-		UserRegistration.authData.put("user2", "pass2");
 	}
 	
 	@Override

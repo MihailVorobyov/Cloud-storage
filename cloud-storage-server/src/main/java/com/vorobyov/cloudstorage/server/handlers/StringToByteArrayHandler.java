@@ -11,9 +11,8 @@ public class StringToByteArrayHandler extends SimpleChannelInboundHandler<String
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String s) throws Exception {
-		logger.info("Starting write to channel...");
 
-		logger.info("output message: " + s);
+//		logger.info("output message: " + s);
 		ctx.write(s.getBytes(StandardCharsets.UTF_8));
 	}
 }

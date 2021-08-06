@@ -49,7 +49,7 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 		password = s[1];
 		
 		if (UserRegistration.authData.containsKey(userName)) {
-			logger.info("User " + userName + " already exists.");
+//			logger.info("User " + userName + " already exists.");
 			ctx.write("User already exists".getBytes(StandardCharsets.UTF_8));
 		} else {
 			UserRegistration.authData.put(userName, password);
@@ -58,7 +58,7 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 				Files.createDirectories(Paths.get("server" + File.separator + userName));
 			}
 			
-			logger.info("User " + userName + " registered.");
+//			logger.info("User " + userName + " registered.");
 			signIn(ctx, msg.replaceFirst("signup", "signIn"));
 		}
 	}
@@ -81,7 +81,7 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 		
 		if (UserRegistration.authData.containsKey(userName) && password.equals(UserRegistration.authData.get(userName))) {
 			if (UserRegistration.usersOnline.contains(userName)) {
-				logger.info("User " + userName + " try to sign in, but already signed in.");
+//				logger.info("User " + userName + " try to sign in, but already signed in.");
 				ctx.write("User already signed in".getBytes(StandardCharsets.UTF_8), ctx.newPromise());
 			} else {
 				UserRegistration.usersOnline.add(userName);
@@ -90,7 +90,7 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 				ctx.fireChannelRead("setUserName " + userName);
 			}
 		} else {
-			logger.info("Wrong name or password: name = " + userName + ", password = " + password + ".");
+//			logger.info("Wrong name or password: name = " + userName + ", password = " + password + ".");
 			ctx.write("wrong name or password");
 		}
 	}

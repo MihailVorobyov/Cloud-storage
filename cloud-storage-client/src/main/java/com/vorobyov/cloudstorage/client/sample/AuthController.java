@@ -41,6 +41,12 @@ public class AuthController {
 	@FXML
 	public Label message;
 	
+	@FXML
+	private void initialize() {
+		loginField.setText("user1");
+		passwordField.setText("pass1");
+	}
+	
 	public AuthController() {
 		Network.connect();
 		
@@ -53,20 +59,17 @@ public class AuthController {
 		
 		if (loginField.getText().matches("\\w+")) {
 			if (passwordField.getText().matches("^[.\\S]+")) {
-				String result;
 				
 				try {
 					auth("signup " + loginField.getText() + ":" + passwordField.getText());
 				} catch (Exception e) {
 					e.printStackTrace();
 				}finally {
-					rbc = null;
-					out = null;
+//					rbc = null;
+//					out = null;
 				}
 			} else {
 				message.setText("Password must consists of letters, numbers or symbols, without spaces.");
-				loginField.setEditable(true);
-				passwordField.setEditable(true);
 			}
 		} else {
 			message.setText("Login must consists of letters, numbers and _ ");
@@ -75,8 +78,6 @@ public class AuthController {
 	
 	//TODO удалить после отладки
 	public void signIn(ActionEvent actionEvent) {
-		loginField.setText("user1");
-		passwordField.setText("pass1");
 		
 		if (loginField.getText().matches("\\w+")) {
 			if (passwordField.getText().matches("^[.\\S]+")) {

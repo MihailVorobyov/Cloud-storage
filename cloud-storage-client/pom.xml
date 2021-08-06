@@ -30,7 +30,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.vorobyov.cloudstorage.client.sample.Auth</mainClass>
+                            <mainClass>com.vorobyov.cloudstorage.client.StartClient</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -42,7 +42,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.vorobyov.cloudstorage.client.sample.Auth</mainClass>
+                            <mainClass>com.vorobyov.cloudstorage.client.StartClient</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

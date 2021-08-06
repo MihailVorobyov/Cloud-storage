@@ -24,7 +24,6 @@ public class UploadFileHandler extends SimpleChannelInboundHandler<ByteBuffer> {
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, ByteBuffer msg) throws Exception {
-		logger.info("Starting read channel...");
 		if (!isReadInProgress) {
 			if (Files.exists(fileToWrite)) {
 				Files.delete(fileToWrite);
@@ -39,19 +38,12 @@ public class UploadFileHandler extends SimpleChannelInboundHandler<ByteBuffer> {
 		try {
 			if (raf == null) {
 				raf = new RandomAccessFile(fileToWrite.toString(), "rw");
-				logger.info("raf created");
 				if (fileChannel == null) {
 					fileChannel = raf.getChannel();
-					logger.info("fileChannel created");
 				}
 			}
-			
-//			ByteBuffer byteBuffer = ByteBuffer.wrap(msg.getData());
 
-//			for (ByteBuffer b : msg) {
-				bytesRead += fileChannel.write(msg, bytesRead);
-//			}
-			
+			bytesRead += fileChannel.write(msg, bytesRead);
 			
 			logger.info("read " + bytesRead + " bytes");
 			logger.info("File size " + Files.size(fileToWrite) + " bytes");
@@ -66,7 +58,6 @@ public class UploadFileHandler extends SimpleChannelInboundHandler<ByteBuffer> {
 				
 				msg.clear();
 				ctx.pipeline().get(ByteBufToByteArrayHandler.class).expectCommand();
-//				ctx.pipeline().lastContext().fireChannelRead("/upload complete".getBytes(StandardCharsets.UTF_8));
 				ctx.fireChannelRead(ByteBuffer.wrap("/upload complete".getBytes(StandardCharsets.UTF_8)));
 
 			}

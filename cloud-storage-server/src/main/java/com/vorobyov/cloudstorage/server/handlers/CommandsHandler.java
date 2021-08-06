@@ -8,7 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.*;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -30,15 +30,16 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
+		
+		logger.info("Command from client: " + msg);
+		
 		String command = msg
 				.replace("\r", "")
 				.replace("\n", "");
-		logger.info("Command from client: " + command);
 		if (command.startsWith("setCurrentPath ")) {
 			ctx.fireChannelRead(setCurrentPath(command));
 		} else if (command.startsWith("setUserName ")) {
 			userName = command.split(" ")[1];
-			logger.info("user name is " + userName);
 			setCurrentPath("setCurrentPath " + userName);
 		} else if (command.startsWith("ls")) {
 			ctx.fireChannelRead(getFilesList());
@@ -73,8 +74,6 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		} else {
 			ctx.fireChannelRead(command);
 		}
-		logger.info(currentPath);
-		
 	}
 	
 
@@ -83,12 +82,14 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		Path p = Paths.get(currentPath, name);
 		if (Files.isDirectory(p)) {
 			setCurrentPath("setCurrentPath " + p.toString());
+			logger.info("Current path is set to " + currentPath);
+			
 			return getFilesList();
 		} else if (Files.isRegularFile(p)) {
 			// send file
-			return currentPath;
+			return getFilesList();
 		}
-		return currentPath;
+		return getFilesList();
 	}
 	
 	private void disconnect( ) {
@@ -156,10 +157,10 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	 * @throws IOException
 	 */
 	private String move(String command) throws IOException {
-		String[] s = command.trim().split(" ", 2);
+		String s = command.trim().split(" ")[1];
 
 		Path sourcePath = from;
-		Path targetPath = Paths.get(currentPath, s[1]);
+		Path targetPath = Paths.get(currentPath, s);
 		
 		if (Files.isDirectory(sourcePath)) {
 			moveDirectory(sourcePath, targetPath);
@@ -278,17 +279,17 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	
 	// копирование файлов / директории
 	private String copy(String command) {
-		from = Paths.get(currentPath, command.split(" ")[1]);
+		String fileToCopyName = command.split(" ", 2)[1];
+		from = Paths.get(currentPath, fileToCopyName);
 		return "file copied";
 	}
 	
 	private String paste() {
 		
 		try {
-			//TODO пути заключить в кавычки
 			Path to = Paths.get(currentPath);
 			
-			if (Files.isRegularFile(from)) { //TODO если файл с таким именем существет...
+			if (Files.isRegularFile(from)) { //TODO если файл с таким именем существует...
 				Files.copy(from, to, StandardCopyOption.REPLACE_EXISTING); //TODO
 				logger.info("File copied");
 			} else if (Files.isDirectory(from)){
@@ -331,39 +332,50 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	}
 	
 	// Удаление файла / директории
-	private String remove(String command) throws IOException {
-		Path target;
+	private String remove(String command) {
 		
 		String name = command.split(" ")[1];
 		
-		if ("$root$".equals(currentPath)) {
-			target = Paths.get("server", userName);
-		} else {
-			target = Paths.get(currentPath, name.trim());
-			if (currentPath.equals(target.toString())) {
-				logger.warning("Wrong command!");
-			}
+		Path start = Paths.get(currentPath, name);
+		if (Files.exists(start)) {
+			logger.warning("Start deleting " + start);
 		}
 		
-		if (Files.exists(target)) {
-			if (Files.isDirectory(target)) {
-				Files.walkFileTree(target, new SimpleFileVisitor<Path>() {
+		try {
+			
+			if (Files.isDirectory(start)) {
+				
+				Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
 					
 					@Override
 					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						logger.warning("Delete  " + file + "...");
 						Files.delete(file);
 						return CONTINUE;
 					}
 					
 					@Override
 					public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-						Files.delete(dir);
-						return CONTINUE;
+						
+						if (exc == null) {
+							logger.warning(dir + " contains " + Files.list(dir).collect(Collectors.toList()));
+							logger.warning("Delete  " + dir + "...");
+							
+							Files.delete(dir);
+							
+							return CONTINUE;
+						} else {
+							throw exc;
+						}
 					}
 				});
+
 			} else {
-				Files.deleteIfExists(target);
+				Files.delete(start);
 			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 		return getFilesList();
 	}
