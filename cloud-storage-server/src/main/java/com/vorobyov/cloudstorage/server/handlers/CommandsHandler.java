@@ -53,7 +53,6 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		} else if (command.startsWith("setUserName ")) {
 			userName = command.replaceFirst("setUserName ", "");
 			currentPath = storageRoot.resolve(userName).toString();
-//			changeDirectory("cd " + Paths.get(storageRoot, userName));
 		} else if (command.startsWith("ls")) {
 			ctx.fireChannelRead(getFilesList());
 		} else if (command.startsWith("open ")) {
@@ -379,7 +378,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 //							if (!Files.exists(moveTo)){
 								Files.move(dir, moveTo, StandardCopyOption.REPLACE_EXISTING);
 //							}
-//							Files.delete(moveTo);
+							Files.delete(moveTo);
 
 							return CONTINUE;
 						} else {
