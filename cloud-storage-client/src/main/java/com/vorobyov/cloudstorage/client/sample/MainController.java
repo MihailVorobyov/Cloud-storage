@@ -105,6 +105,7 @@ public class MainController {
 	
 	private void writeCommand(String s) {
 		try {
+			logger.warning("Send command: " + s);
 			out.write(s.getBytes(StandardCharsets.UTF_8));
 			out.flush();
 		} catch (IOException e) {
@@ -316,8 +317,19 @@ public class MainController {
 	}
 	
 	@FXML
-	private void makeDir() {
+	void makeDir() throws Exception {
+		new InputNameDialog(this);
+	}
 	
+	protected void makeDir(String name) throws IOException {
+		if (name != null) {
+			if (selectedTableView == localFileList) {
+				Files.createDirectory(Paths.get(user.getCurrentLocalPath(), name));
+				getLocalFileList();
+			} else if (selectedTableView == serverFileList) {
+				getServerFileList("mkdir " + name);
+			}
+		}
 	}
 	
 	@FXML
@@ -373,9 +385,8 @@ public class MainController {
 		if (file.isFile()) {
 			long fileSize = file.length();
 			try {
-				String command = "upload " + Paths.get(serverPath, fileName) + " " + fileSize;
-				out.write(command.getBytes(StandardCharsets.UTF_8));
-				out.flush();
+				String command = "upload " + fileName + " " + fileSize;
+				writeCommand(command);
 				String answer = read();
 				if ("/upload accepted".equals(answer)) {
 					sendFile(file);
@@ -386,7 +397,7 @@ public class MainController {
 					} else if ("/upload failed".equals(answer)) {
 //						logger.info("answer from server: " + answer);
 					}
-					getServerFileList();
+					getServerFileList("ls");
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -441,31 +452,8 @@ public class MainController {
 	 * из String в List<FileProperties>. Разделителем между файлами
 	 * служит последовательность "<>", а между свойствами файла - ";;"
 	 */
-	private void getServerFileList() {
-		List<FileProperties> result = new ArrayList<>();
-		
-		try {
-			writeCommand("setCurrentPath " + user.getCurrentServerPath());
-			logger.info(read());
-			
-			writeCommand("ls");
-			String fileList = read();
-			if (!" ".equals(fileList)) {
-				logger.info("filelist = " + fileList);
-				result = Arrays.stream(fileList.split("<>"))
-					.map(s -> s.split(";;"))
-					.map(s -> new FileProperties(s[0], s[1], Long.parseLong(s[2]), new Date(Long.parseLong(s[3]))))
-					.collect(Collectors.toList());
-			}
-			
-			renewServerTable(result);
-
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
 	private void getServerFileList(String command) {
+		logger.warning("Command is " + command);
 		List<FileProperties> result = new ArrayList<>();
 		
 		try {
@@ -537,13 +525,8 @@ public class MainController {
 	
 	@FXML
 	private void serverListUp() {
-		writeCommand("cd ..");
-		try {
-			getServerFileList(read());
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-//		if (Paths.get(user.getCurrentServerPath()).getParent() != null) {
+		getServerFileList("cd ..");
+		//		if (Paths.get(user.getCurrentServerPath()).getParent() != null) {
 //			user.setCurrentServerPath(Paths.get(user.getCurrentServerPath()).getParent().toString());
 //
 //		}

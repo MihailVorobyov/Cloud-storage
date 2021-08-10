@@ -1,6 +1,7 @@
 package com.vorobyov.cloudstorage.server.handlers;
 
 import com.vorobyov.cloudstorage.server.utils.FileProperties;
+import com.vorobyov.cloudstorage.server.utils.UserRegistration;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
@@ -22,10 +23,21 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	String currentPath;
 	Path from;
 	Path to;
+	private final Path storageRoot = Paths.get("cloud-storage-server/userDataStorage");
+	private final Path storageRecycleBin = storageRoot.resolve("recycleBin");
 	
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
 		cause.printStackTrace();
+	}
+	
+	
+	@Override
+	public void channelInactive(ChannelHandlerContext ctx) {
+		logger.info("Client " + ctx.channel().remoteAddress() + " disconnected.");
+		clearRecycleBin();
+		UserRegistration.usersOnline.remove(UserRegistration.addressUser.get(ctx.channel().remoteAddress()));
+		UserRegistration.addressUser.remove(ctx.channel().remoteAddress());
 	}
 	
 	@Override
@@ -39,12 +51,13 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		if (command.startsWith("setCurrentPath ")) {
 			ctx.fireChannelRead(setCurrentPath(command));
 		} else if (command.startsWith("setUserName ")) {
-			userName = command.split(" ")[1];
-			setCurrentPath("setCurrentPath " + userName);
+			userName = command.replaceFirst("setUserName ", "");
+			currentPath = storageRoot.resolve(userName).toString();
+//			changeDirectory("cd " + Paths.get(storageRoot, userName));
 		} else if (command.startsWith("ls")) {
 			ctx.fireChannelRead(getFilesList());
 		} else if (command.startsWith("open ")) {
-			ctx.fireChannelRead(openFile(command));
+			ctx.fireChannelRead(open(command));
 		} else if (command.startsWith("touch ")) {
 			ctx.fireChannelRead(createFile(command)); //TODO убрать currentPath - будет передаваться от клиента
 		} else if (command.startsWith("mkdir ")) {
@@ -77,17 +90,18 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	}
 	
 
-	private String openFile(String command) {
+	private String open(String command) {
 		String name = command.replaceFirst("open ", "");
 		Path p = Paths.get(currentPath, name);
 		if (Files.isDirectory(p)) {
-			setCurrentPath("setCurrentPath " + p.toString());
-			logger.info("Current path is set to " + currentPath);
 			
-			return getFilesList();
-		} else if (Files.isRegularFile(p)) {
+			setCurrentPath("setCurrentPath " + p);
+			logger.info("Current path is set to " + p);
+			
+		} else {
+			
 			// send file
-			return getFilesList();
+			
 		}
 		return getFilesList();
 	}
@@ -97,13 +111,13 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	}
 	
 	/**
-	 * Метод для загрузка файла с клиента на сервер.
+	 * Метод для загрузки файла с клиента на сервер.
 	 * @param command Строка вида "upload путь_к_файлу_на_сервере размер_файла"
 	 * @return возвращает содержимое текущей директории
 	 */
 	private String upload(String command, ChannelHandlerContext ctx) {
 		String[] s = command.split(" ", 3);
-		Path filePath = Paths.get("server", s[1]); //TODO перенести в UploadHandler
+		Path filePath = Paths.get(currentPath, s[1]);
 		long fileSize = Long.parseLong(s[2]);
 		
 		ctx.pipeline().get(UploadFileHandler.class).setFileToWrite(filePath);
@@ -154,7 +168,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	 *
 	 * @param command Команда формата "move source_path target_path"
 	 * @return Возвращает список файлов текущей директории
-	 * @throws IOException
+	 * @throws IOException выбрасывает исключение
 	 */
 	private String move(String command) throws IOException {
 		String s = command.trim().split(" ")[1];
@@ -171,9 +185,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return getFilesList();
 	}
 	
-	private void moveDirectory (Path src, Path trg) {
-		Path source = src;
-		Path target = trg;
+	private void moveDirectory (Path source, Path target) {
 		
 		try {
 			Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
@@ -219,14 +231,14 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	private String setCurrentPath(String command) {
 		String[] s = command.split(" ", 2);
 		String path = s[1];
-		if (path.startsWith("server")) {
+		if (path.startsWith(storageRoot.resolve(userName).toString())) {
 			currentPath = path;
 		} else {
-			currentPath = Paths.get("server", path).toString(); //TODO currentPath ????
+			currentPath = storageRoot.resolve(path).toString(); //TODO currentPath ????
 		}
 		logger.info("current path is " + currentPath);
 		
-		return "OK";
+		return "OK"; //TODO ??????????
 	}
 	
 	/**
@@ -249,7 +261,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 				result = " ";
 			}
 			
-			logger.info("File list:  " + result);
+//			logger.info("File list:  " + result);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -281,21 +293,22 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	private String copy(String command) {
 		String fileToCopyName = command.split(" ", 2)[1];
 		from = Paths.get(currentPath, fileToCopyName);
+		logger.info("file " + from + " copied");
 		return "file copied";
 	}
 	
 	private String paste() {
 		
 		try {
-			Path to = Paths.get(currentPath);
+			Path to = Paths.get(currentPath + from.getFileName());
 			
-			if (Files.isRegularFile(from)) { //TODO если файл с таким именем существует...
-				Files.copy(from, to, StandardCopyOption.REPLACE_EXISTING); //TODO
-				logger.info("File copied");
-			} else if (Files.isDirectory(from)){
+			if (Files.isDirectory(from)){
 				copyDirectory(from, to);
-				logger.info("Directory copied");
+				logger.info("Directory pasted");
+			} else { //TODO если файл с таким именем существует...
 				
+				Files.copy(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES); //TODO
+				logger.info("File pasted");
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -333,36 +346,41 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	
 	// Удаление файла / директории
 	private String remove(String command) {
-		
-		String name = command.split(" ")[1];
-		
+
+		String name = command.split(" ", 2)[1];
+
 		Path start = Paths.get(currentPath, name);
 		if (Files.exists(start)) {
 			logger.warning("Start deleting " + start);
 		}
-		
+
 		try {
-			
+
 			if (Files.isDirectory(start)) {
-				
+
 				Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
-					
+
 					@Override
 					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-						logger.warning("Delete  " + file + "...");
 						Files.delete(file);
+						if (Files.exists(file)) {
+							logger.warning("File " + file + " not deleted!!!");
+						}
 						return CONTINUE;
 					}
-					
+
 					@Override
 					public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-						
+
 						if (exc == null) {
-							logger.warning(dir + " contains " + Files.list(dir).collect(Collectors.toList()));
-							logger.warning("Delete  " + dir + "...");
-							
-							Files.delete(dir);
-							
+
+							Path moveTo = storageRecycleBin.resolve(userName).resolve(dir.getFileName());
+							Files.createDirectories(moveTo.getParent());
+//							if (!Files.exists(moveTo)){
+								Files.move(dir, moveTo, StandardCopyOption.REPLACE_EXISTING);
+//							}
+//							Files.delete(moveTo);
+
 							return CONTINUE;
 						} else {
 							throw exc;
@@ -380,23 +398,65 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		return getFilesList();
 	}
 	
+	private String clearRecycleBin() {
+
+		Path start = storageRecycleBin.resolve(userName);
+		
+		if (Files.exists(start)) {
+			try {
+				Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
+					
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						Files.delete(file);
+						
+						if (Files.exists(file)) {
+							logger.warning("File " + file + " not deleted!!!");
+						}
+						return CONTINUE;
+					}
+					
+					@Override
+					public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+						
+						if (exc == null) {
+							
+							Path toBeDeleted = dir.getParent().resolve("_tobedeleted");
+							Files.move(dir, toBeDeleted);
+							Files.delete(toBeDeleted);
+							if (Files.exists(toBeDeleted)) {
+								logger.warning("File " + dir + " not deleted!!!");
+							}
+							return CONTINUE;
+						} else {
+							throw exc;
+						}
+					}
+				});
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return getFilesList();
+	}
+	
 	// изменение текущей директории
 	private String changeDirectory(String command) {
 		String[] arguments = command.split(" ", 2);
 		String path = arguments[1].trim();
 		
 		if ("~".equals(path)) {
-			this.currentPath = Paths.get("server", userName).toString();
+			currentPath = storageRoot.resolve(userName).toString();
 		} else if ("..".equals(path)) {
-			if (Paths.get(currentPath).getParent().startsWith(Paths.get("server", userName))) {
-				this.currentPath = Paths.get(currentPath).getParent().toString();
+			if (Paths.get(currentPath).getParent().startsWith(storageRoot.resolve(userName))) {
+				currentPath = Paths.get(currentPath).getParent().toString();
 			}
 		} else {
-			if (Paths.get(currentPath, path).normalize().startsWith(Paths.get("server", userName))
+			if (Paths.get(currentPath, path).normalize().startsWith(storageRoot.resolve(userName))
 						&& Files.isDirectory(Paths.get(currentPath, path))
 						&& Files.exists(Paths.get(currentPath, path))) {
-				
-				this.currentPath = Paths.get(currentPath, path).normalize().toString();
+
+				currentPath = Paths.get(path).normalize().toString();
 			}
 		}
 		return getFilesList();
@@ -407,7 +467,7 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 		String[] arguments = command.split(" ", 2);
 		Path path = Paths.get(currentPath, arguments[1]);
 		try {
-			if (path.startsWith(Paths.get("server", userName))) {
+			if (path.startsWith(storageRoot.resolve(userName))) {
 				if (Files.notExists(path)) {
 					Files.createFile(path);
 					
@@ -429,11 +489,10 @@ public class CommandsHandler extends SimpleChannelInboundHandler<String> {
 	 */
 	private String makeDirectory(String command) {
 		String[] arguments = command.split(" ", 2);
-
 		String pathArg = arguments[1].trim();
 		Path path = Paths.get(currentPath, pathArg);
 		try {
-			if (path.startsWith(Paths.get("server", userName).toString())) {
+			if (path.startsWith(storageRoot.resolve(userName).toString())) {
 				Files.createDirectories(path);
 			}
 		} catch (IOException e) {

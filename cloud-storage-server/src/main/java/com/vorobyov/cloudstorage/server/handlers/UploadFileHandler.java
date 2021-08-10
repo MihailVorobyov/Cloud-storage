@@ -45,8 +45,8 @@ public class UploadFileHandler extends SimpleChannelInboundHandler<ByteBuffer> {
 
 			bytesRead += fileChannel.write(msg, bytesRead);
 			
-			logger.info("read " + bytesRead + " bytes");
-			logger.info("File size " + Files.size(fileToWrite) + " bytes");
+//			logger.info("read " + bytesRead + " bytes");
+//			logger.info("File size " + Files.size(fileToWrite) + " bytes");
 			
 			if (fileSize == Files.size(fileToWrite)) {
 				logger.info("/upload complete");

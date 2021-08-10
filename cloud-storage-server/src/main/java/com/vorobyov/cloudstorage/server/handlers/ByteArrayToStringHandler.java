@@ -13,7 +13,7 @@ public class ByteArrayToStringHandler extends SimpleChannelInboundHandler<ByteBu
 
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, ByteBuffer byteArray) throws Exception {
-		logger.info("Starting read channel...");
+//		logger.info("Starting read channel...");
 		
 		byte[] bytes = new byte[byteArray.capacity()];
 		int bytesPosition = -1;
@@ -23,7 +23,7 @@ public class ByteArrayToStringHandler extends SimpleChannelInboundHandler<ByteBu
 		}
 		
 		String command = new String(bytes, StandardCharsets.UTF_8);
-		logger.info(command);
+//		logger.info(command);
 		ctx.pipeline().get(CommandsHandler.class).channelRead0(ctx, command);
 	}
 }

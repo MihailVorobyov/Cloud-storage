@@ -33,13 +33,7 @@ public class ByteBufToByteArrayHandler extends ChannelInboundHandlerAdapter {
 		logger.info("Client " + ctx.channel().remoteAddress() + " connected.");
 		
 	}
-	
-	@Override
-	public void channelInactive(ChannelHandlerContext ctx) {
-		logger.info("Client " + ctx.channel().remoteAddress() + " disconnected.");
-		UserRegistration.usersOnline.remove(UserRegistration.addressUser.get(ctx.channel().remoteAddress()));
-		UserRegistration.addressUser.remove(ctx.channel().remoteAddress());
-	}
+
 	
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {

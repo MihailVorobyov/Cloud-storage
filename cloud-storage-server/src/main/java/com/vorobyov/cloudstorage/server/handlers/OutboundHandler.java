@@ -21,7 +21,6 @@ public class OutboundHandler extends ChannelOutboundHandlerAdapter {
 	
 	@Override
 	public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
-		logger.info("Starting write to channel...");
 		
 		byte[] bytes = (byte[]) msg;
 //		logger.info("output message: " + new String(bytes, StandardCharsets.UTF_8));

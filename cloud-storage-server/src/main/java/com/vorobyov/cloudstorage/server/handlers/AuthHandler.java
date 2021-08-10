@@ -17,6 +17,7 @@ import java.util.logging.Logger;
  */
 public class AuthHandler extends SimpleChannelInboundHandler<String> {
 	Logger logger = Logger.getLogger("server.handlers.InboundAuthHandler");
+	private final String storageRoot = "cloud-storage-server/userDataStorage";
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
@@ -54,8 +55,8 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 		} else {
 			UserRegistration.authData.put(userName, password);
 			
-			if (!Files.exists(Paths.get("server" + File.separator + userName))) {
-				Files.createDirectories(Paths.get("server" + File.separator + userName));
+			if (!Files.exists(Paths.get(storageRoot, userName))) {
+				Files.createDirectories(Paths.get(storageRoot, userName));
 			}
 			
 //			logger.info("User " + userName + " registered.");
@@ -86,8 +87,8 @@ public class AuthHandler extends SimpleChannelInboundHandler<String> {
 			} else {
 				UserRegistration.usersOnline.add(userName);
 				ctx.write("signIn successful".getBytes(StandardCharsets.UTF_8), ctx.newPromise());
-				ctx.pipeline().remove(AuthHandler.class); //TODO возможны проблемы
 				ctx.fireChannelRead("setUserName " + userName);
+				ctx.pipeline().remove(AuthHandler.class);
 			}
 		} else {
 //			logger.info("Wrong name or password: name = " + userName + ", password = " + password + ".");
