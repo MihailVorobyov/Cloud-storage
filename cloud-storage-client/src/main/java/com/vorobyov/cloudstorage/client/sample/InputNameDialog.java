@@ -14,11 +14,11 @@ import java.io.IOException;
 public class InputNameDialog extends Application {
     
 //    protected String newFileName;
-    private MainController mainController;
+    private final MainController mainController;
     
     Stage stage = new Stage();
     
-    public InputNameDialog(MainController controller) throws Exception {
+    protected InputNameDialog(MainController controller) throws Exception {
         mainController = controller;
         start(new Stage());
     }

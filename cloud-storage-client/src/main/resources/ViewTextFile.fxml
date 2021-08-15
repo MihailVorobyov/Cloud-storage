@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.text.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<Pane xmlns="http://javafx.com/javafx/8"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.vorobyov.cloudstorage.client.sample.ViewTextFileController">
+   <FlowPane alignment="CENTER"
+             columnHalignment="CENTER"
+             minHeight="550.0"
+             minWidth="450.0"
+             vgap="5.0">
+      <Label fx:id="fileNameLabel"
+             maxHeight="20.0"
+             minHeight="20.0"
+             prefHeight="20.0"
+             prefWidth="450.0">
+         <font>
+            <Font size="14.0"/>
+         </font>
+      </Label>
+      <TextArea fx:id="text"
+                editable="false"
+                prefHeight="500.0"
+                prefWidth="450.0"/>
+      <Button fx:id="closeButton"
+              contentDisplay="CENTER"
+              mnemonicParsing="false"
+              onAction="#cancel"
+              text="Close">
+         <font>
+            <Font size="14.0"/>
+         </font>
+      </Button>
+   </FlowPane>
+</Pane>

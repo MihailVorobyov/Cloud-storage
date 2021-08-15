@@ -1,0 +1,5 @@
+.FlowPane {
+    -fx-row-valignment: center;
+    -fx-alignment: center;
+    -fx-vgap: 5.0;
+}

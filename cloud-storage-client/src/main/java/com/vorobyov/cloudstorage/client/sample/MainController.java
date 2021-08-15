@@ -14,9 +14,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -98,9 +96,17 @@ public class MainController {
 			if ("dir".equals(selectedFileType)) {
 				user.setCurrentLocalPath(Paths.get(user.getCurrentLocalPath(), selectedFileName).toString());
 				getLocalFileList();
+			} else if (".txt".equals(selectedFileType) || ".log".equals(selectedFileType)) {
+				try {
+					ViewTextFile vtf = new ViewTextFile();
+					vtf.showWindow(new File(selectedPath));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 		}
 		lastClickTime = System.currentTimeMillis();
+		setSelectedFileName(null);
 	}
 	
 	private void writeCommand(String s) {
@@ -169,47 +175,112 @@ public class MainController {
 		logger.warning("source is " + sourceFile.getPath());
 		logger.warning("target is " + targetFile.getPath());
 		
+		// cut
 		if (isCutModeEnabled) {
-			// Целевой файл существует и эквивалентен исходному - ничего не делаем
-			if (targetFile.exists() && targetFile.equals(sourceFile)) { // TODO предложение заменить
-				isCutModeEnabled = false;
-			} else {
-				isCutModeEnabled = false;
-				paste();
-				delete(sourceFile.getPath());
+			if (!targetFile.equals(sourceFile)) {
+				if (sourceFile.isDirectory()) {
+					copyDirectory(sourceFile, targetFile);
+				} else {
+					copyFile(sourceFile, targetFile);
+					delete(sourceFile.getPath());
+				}
 			}
+			isCutModeEnabled = false;
+			// copy
 		} else {
-			copyFileData(targetFile);
+			if (sourceFile.isDirectory()) {
+				copyDirectory(sourceFile, targetFile);
+			} else {
+				copyFile(sourceFile, targetFile);
+			}
 			logger.info("Past to local directory complete");
 		}
 		
 		getLocalFileList();
 	}
 	
-	private void copyFileData(File targetFile) {
+	private void copyDirectory(File sourceFile, File targetFile) {
+		Map<File, File> copyMap = new HashMap<>();
+		
+		fillCopyMap(copyMap, sourceFile, sourceFile, targetFile);
+		
+		//TODO сделать проверку свободного пространства
+		//
+		
+		copyMap.forEach((s, t) -> {
+			System.out.println(s + " -> " + t);
+			boolean a = t.getParentFile().mkdirs();
+			logger.warning("mkdirs for " + t + " is " + a);
+			if (s.isFile()) {
+				copyFile(s, t);
+			} else {
+				a = t.mkdir();
+				logger.warning("mkdirs for " + t + " is " + a);
+			}
+		} );
+		
+	}
+	
+	private void fillCopyMap(Map<File, File> map, File dir, File sourceFile, File targetFile) {
+		
+		if (map != null && dir != null && sourceFile != null && targetFile != null) {
+			File[] fileList = dir.listFiles();
+			if (fileList != null) {
+				for (File f : fileList) {
+					if (f.isFile()) {
+						map.put(f, relativize(f, sourceFile, targetFile));
+					} else if (f.isDirectory()) {
+						if (Objects.requireNonNull(f.listFiles()).length == 0) {
+							map.put(f, relativize(f, sourceFile, targetFile));
+						} else {
+							fillCopyMap(map, f, sourceFile, targetFile);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	private File relativize(File file, File sourceDir, File targetDir) {
+		String s1 = file.getAbsolutePath();
+		String s2 = sourceDir.getAbsolutePath();
+		String s3 = targetDir.getAbsolutePath().concat(s1.replace(s2, ""));
+		return new File(s3);
+	}
+	
+	private void copyFile(File sourceFile, File targetFile) {
 		
 		FileInputStream fis = null;
 		FileOutputStream fos = null;
+		File targetFileToCopy;
 		
 		try {
-			targetFile = new File(generateFileName(targetFile));
-			targetFile.createNewFile();
+			if (targetFile.exists()) {
+				targetFileToCopy = new File(generateFileName(targetFile));
+			} else {
+				targetFileToCopy = targetFile;
+			}
+			targetFileToCopy.createNewFile();
+			logger.info("Target file name is " + targetFileToCopy.getAbsolutePath());
 
-			fis = new FileInputStream(source);
-			fos = new FileOutputStream(target);
+			fis = new FileInputStream(sourceFile.getAbsolutePath());
+			fos = new FileOutputStream(targetFileToCopy.getAbsolutePath());
 			
-			logger.warning("New target file name is " + targetFile.getName());
+//			logger.warning("New target file name is " + targetFileToCopy.getAbsolutePath());
 			
 			ByteBuffer bb = ByteBuffer.allocate(10 * 1024 * 1024);
 			int bytesRead;
+			int bytesWrite;
 			while (fis.available() > 0) {
 				bytesRead = fis.getChannel().read(bb);
-				logger.info(bytesRead + " bytes was read");
+				logger.info(bytesRead + " bytes was read from " + sourceFile.getAbsolutePath() );
 				bb.flip();
-				logger.info("flip buffer");
-				fos.getChannel().write(bb);
+//				logger.info("flip buffer");
+				bytesWrite = fos.getChannel().write(bb);
+				logger.info(bytesWrite + " bytes was write to " + targetFileToCopy.getAbsolutePath());
+				
 				bb.rewind();
-				logger.info("rewind buffer");
+//				logger.info("rewind buffer");
 			}
 			
 		} catch (FileNotFoundException e) {
@@ -235,6 +306,7 @@ public class MainController {
 	private String generateFileName(File targetFile) {
 		int suffix = 1;
 		String[] newNameAndExtension = targetFile.getName().split("\\.");
+		String targetPath = targetFile.getAbsolutePath();
 		
 		while (targetFile.exists()) {
 			logger.info("File already exists");
@@ -246,12 +318,12 @@ public class MainController {
 				.map(File::getName)
 				.noneMatch(n -> n.equals(copiedFileName))
 			) {
-				target = user.getCurrentLocalPath() + File.separator + copiedFileName;
+				targetPath = user.getCurrentLocalPath() + File.separator + copiedFileName;
 				break;
 			}
 		}
 		
-		return target;
+		return targetPath;
 	}
 	
 	private void pasteFromServerToClient() {
@@ -310,10 +382,11 @@ public class MainController {
 		Arrays.stream(fileList)
 			.forEach(f -> {
 				logger.info("Delete " + f.getPath());
-				delete(f.getPath());
+				delete(f.getAbsolutePath());
 			});
 		
-		delete(source.getPath());
+		boolean b = source.delete();
+		logger.warning(source + " delete is " + b);
 	}
 	
 	@FXML
@@ -380,7 +453,6 @@ public class MainController {
 	private void upload(String fileName) {
 
 		String localPath = user.getCurrentLocalPath();
-		String serverPath = user.getCurrentServerPath();
 		File file = new File(localPath + File.separator + fileName);
 		if (file.isFile()) {
 			long fileSize = file.length();
@@ -393,9 +465,9 @@ public class MainController {
 					
 					answer = read();
 					if (answer.startsWith("/upload complete")) {
-//						logger.info("answer from server: " + answer);
+						logger.info("answer from server: " + answer);
 					} else if ("/upload failed".equals(answer)) {
-//						logger.info("answer from server: " + answer);
+						logger.info("answer from server: " + answer);
 					}
 					getServerFileList("ls");
 				}
@@ -413,13 +485,15 @@ public class MainController {
 		
 		try {
 			String[] s = new File(currentPath.toString()).list();
-			if (s.length > 0) {
-				result = Files.list(currentPath)
-					.map(p -> new FileProperties(p.getFileName().toString(),
-						getFileExtension(p),
-						new File(p.toString()).length(),
-						new Date(new File(p.toString()).lastModified())))
-					.collect(Collectors.toList());
+			if (s != null) {
+				if (s.length > 0) {
+					result = Files.list(currentPath)
+						.map(p -> new FileProperties(p.getFileName().toString(),
+							getFileExtension(p),
+							new File(p.toString()).length(),
+							new Date(new File(p.toString()).lastModified())))
+						.collect(Collectors.toList());
+				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -505,9 +579,11 @@ public class MainController {
 	}
 	
 	private void setSelectedFileName(TableView<FileProperties> tv) {
-		if (tv.getSelectionModel().getSelectedItem() != null) {
-			selectedFileName = tv.getSelectionModel().getSelectedItem().getName();
-		}
+		if (tv != null) {
+			if (tv.getSelectionModel().getSelectedItem() != null) {
+				selectedFileName = tv.getSelectionModel().getSelectedItem().getName();
+			}
+		} else selectedFileName = "";
 	}
 	private void setSelectedFileType(TableView<FileProperties> tv) {
 		if (tv.getSelectionModel().getSelectedItem() != null) {
@@ -526,9 +602,5 @@ public class MainController {
 	@FXML
 	private void serverListUp() {
 		getServerFileList("cd ..");
-		//		if (Paths.get(user.getCurrentServerPath()).getParent() != null) {
-//			user.setCurrentServerPath(Paths.get(user.getCurrentServerPath()).getParent().toString());
-//
-//		}
 	}
 }
